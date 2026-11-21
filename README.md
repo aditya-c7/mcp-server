@@ -75,7 +75,7 @@ Example response:
 1. Client sends a JSON-RPC request to `/mcp` over Streamable HTTP.
 2. The handler validates the `Host` header against an allowlist.
 3. Tool input is checked: only a single registrable apex domain is accepted.
-4. Several passive public indexes are tried in order. Each gets a short timeout; the first usable result wins and failed sources are skipped silently. Names are normalized, deduplicated, sorted, and capped.
+4. Several passive public indexes are tried in order. Each gets a short timeout; the first usable result wins and failed sources are skipped silently. A short, bounded supplemental check may add names when the result is below the 100-name cap. It is best-effort and never turns a successful lookup into a failure. Names are normalized, deduplicated, sorted, and capped.
 5. Success returns a JSON-RPC tool result; failure returns `isError: true` with a plain message.
 
 Results are cached for 1 hour.

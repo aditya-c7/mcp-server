@@ -3,11 +3,13 @@ const KEYED_SUBDOMAIN_ENDPOINT = 'https://www.virustotal.com/api/v3/domains/{dom
 const ISSUANCE_SEARCH_ENDPOINT = 'https://api.certspotter.com/v1/issuances?domain={domain}&include_subdomains=true&expand=dns_names';
 const WEB_SEARCH_ENDPOINT = 'https://urlscan.io/api/v1/search/?q=domain:{domain}&size=100';
 const HOST_SEARCH_ENDPOINT = 'https://api.hackertarget.com/hostsearch/?q={domain}';
+const ARCHIVE_INDEX_ENDPOINT = 'https://web.archive.org/cdx/search/cdx?url=*.{domain}/*&output=json&fl=original&collapse=urlkey&limit=200';
 const CACHE_KEY_PREFIX = 'https://cache.internal/subdomains/';
 
 const CACHE_TTL_SECONDS = 3600;
 const MAX_NAMES = 100;
 const TIMEOUT_MS = 4000;
+const CSP_TIMEOUT_MS = 2000;
 const USER_AGENT = 'subdomain-index/1.0';
 
 const TIMEOUT_TEXT = 'Lookup timed out or was unreachable. Try again.';
@@ -198,6 +200,40 @@ const parseHostSearch: NameParser = (body) => {
 	return out;
 };
 
+const parseArchiveIndex: NameParser = (body, apex) => {
+	const out: string[] = [];
+	const parsed = safeJson(body);
+	if (!Array.isArray(parsed)) {
+		return out;
+	}
+	for (const row of parsed as unknown[]) {
+		if (!Array.isArray(row)) {
+			continue;
+		}
+		const first = row[0];
+		if (typeof first !== 'string' || first === 'original') {
+			continue;
+		}
+		let host: string;
+		try {
+			host = new URL(first).hostname;
+		} catch {
+			continue;
+		}
+		let name = host.toLowerCase();
+		if (name.startsWith('*.')) {
+			name = name.slice(2);
+		}
+		if (!HOSTNAME_RE.test(name)) {
+			continue;
+		}
+		if (name === apex || name.endsWith('.' + apex)) {
+			out.push(name);
+		}
+	}
+	return out;
+};
+
 interface CachedValue {
 	names: string[];
 	total_seen: number;
@@ -290,6 +326,84 @@ function selectFailure(reasons: FailureReason[]): string {
 	return NO_RESULT_TEXT;
 }
 
+function cspTokenToName(token: string, apex: string): string | undefined {
+	let value = token.replace(/^["']+/, '').replace(/["']+$/g, '');
+	if (value.length === 0) {
+		return undefined;
+	}
+
+	let host: string;
+	if (/^https?:\/\//i.test(value)) {
+		try {
+			host = new URL(value).hostname;
+		} catch {
+			return undefined;
+		}
+	} else {
+		host = value;
+	}
+
+	let name = host.trim().toLowerCase().split(/[/?#]/, 1)[0] ?? '';
+	const port = name.indexOf(':');
+	if (port !== -1) {
+		name = name.slice(0, port);
+	}
+	name = name.replace(/\.+$/, '');
+	if (name.startsWith('*.')) {
+		name = name.slice(2);
+	}
+	if (!HOSTNAME_RE.test(name)) {
+		return undefined;
+	}
+	if (name === apex || name.endsWith('.' + apex)) {
+		return name;
+	}
+	return undefined;
+}
+
+function extractCspNames(headers: string[], apex: string): string[] {
+	const out: string[] = [];
+	for (const header of headers) {
+		for (const token of header.split(/[\s;]+/)) {
+			const name = cspTokenToName(token, apex);
+			if (name !== undefined) {
+				out.push(name);
+			}
+		}
+	}
+	return out;
+}
+
+async function fetchCspNames(domain: string, apex: string): Promise<string[]> {
+	const controller = new AbortController();
+	const timer = setTimeout(() => controller.abort(), CSP_TIMEOUT_MS);
+	try {
+		let response: Response;
+		try {
+			response = await fetch(`https://${domain}`, {
+				method: 'HEAD',
+				redirect: 'follow',
+				signal: controller.signal
+			});
+		} catch {
+			return [];
+		}
+		if (response.status < 200 || response.status >= 300) {
+			return [];
+		}
+		const headers: string[] = [];
+		for (const header of ['content-security-policy', 'content-security-policy-report-only']) {
+			const value = response.headers.get(header);
+			if (value !== null) {
+				headers.push(value);
+			}
+		}
+		return extractCspNames(headers, apex);
+	} finally {
+		clearTimeout(timer);
+	}
+}
+
 export async function lookup(rawDomain: string, env: LookupEnv = {}): Promise<LookupOutcome> {
 	const normalized = normalizeApex(rawDomain);
 	if (!normalized.ok) {
@@ -326,7 +440,8 @@ export async function lookup(rawDomain: string, env: LookupEnv = {}): Promise<Lo
 	tasks.push(
 		{ url: ISSUANCE_SEARCH_ENDPOINT, parse: parseIssuances },
 		{ url: WEB_SEARCH_ENDPOINT, parse: parseWebSearch },
-		{ url: HOST_SEARCH_ENDPOINT, parse: parseHostSearch }
+		{ url: HOST_SEARCH_ENDPOINT, parse: parseHostSearch },
+		{ url: ARCHIVE_INDEX_ENDPOINT, parse: parseArchiveIndex }
 	);
 
 	const reasons: FailureReason[] = [];
@@ -338,6 +453,20 @@ export async function lookup(rawDomain: string, env: LookupEnv = {}): Promise<Lo
 			break;
 		}
 		reasons.push(attempt.reason);
+	}
+
+	// Best-effort header check only when useful; it never fails the lookup.
+	if (parsed === undefined || parsed.names.length < MAX_NAMES) {
+		const cspNames = await fetchCspNames(target, apex);
+		if (cspNames.length > 0) {
+			const merged = normalizeNames([
+				...(parsed ? parsed.names : []),
+				...cspNames
+			]);
+			if (merged.names.length > 0) {
+				parsed = merged;
+			}
+		}
 	}
 
 	if (parsed === undefined) {
