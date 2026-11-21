@@ -1,26 +1,67 @@
-/**
- * Welcome to Cloudflare Workers! This is your first worker.
- *
- * - Run `npm run dev` in your terminal to start a development server
- * - Open a browser tab at http://localhost:8787/ to see your worker in action
- * - Run `npm run deploy` to publish your worker
- *
- * Bind resources to your worker in `wrangler.jsonc`. After adding bindings, a type definition for the
- * `Env` object can be regenerated with `npm run cf-typegen`.
- *
- * Learn more at https://developers.cloudflare.com/workers/
- */
+import { createMcpHandler } from 'agents/mcp/server';
+import { McpServer } from '@modelcontextprotocol/server';
+import { z } from 'zod';
+import { lookup } from './lookup';
 
-export default {
-	async fetch(request, env, ctx): Promise<Response> {
-		const url = new URL(request.url);
-		switch (url.pathname) {
-			case '/message':
-				return new Response('Hello, World!');
-			case '/random':
-				return new Response(crypto.randomUUID());
-			default:
-				return new Response('Not Found', { status: 404 });
-		}
+const DESCRIPTION =
+	'List publicly indexed names for one apex domain.\n' +
+	'Pass only the registrable apex, such as example.com or adityahq.me.\n' +
+	'Not a URL, not a subdomain, not an IP.\n' +
+	'Results are indexed names only. Not a complete list.\n' +
+	'Not checked for whether they are online.\n' +
+	'On failure, say the lookup failed. Never invent names.';
+
+const handler = createMcpHandler(
+	() => {
+		const server = new McpServer({ name: 'subdomain-index', version: '1.0.0' });
+		server.registerTool(
+			'list_subdomains',
+			{
+				description: DESCRIPTION,
+				inputSchema: z.object({ domain: z.string() }),
+				annotations: {
+					readOnlyHint: true,
+					openWorldHint: true,
+					destructiveHint: false
+				}
+			},
+			async ({ domain }) => {
+				const result = await lookup(domain);
+				if (!result.ok) {
+					return {
+						isError: true,
+						content: [{ type: 'text', text: result.message }]
+					};
+				}
+				return {
+					content: [{ type: 'text', text: result.text }]
+				};
+			}
+		);
+		return server;
 	},
-} satisfies ExportedHandler<Env>;
+	{
+		route: '/mcp',
+		allowedHostnames: [
+			'server.adityahq.me',
+			'REPLACE_WITH_WORKERS_DEV_HOSTNAME',
+			'localhost',
+			'127.0.0.1',
+			'[::1]'
+		]
+	}
+);
+
+const worker = {
+	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+		const url = new URL(request.url);
+		if (url.pathname === '/health' && request.method === 'GET') {
+			return new Response('ok', {
+				headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+			});
+		}
+		return handler(request, env, ctx);
+	}
+};
+
+export default worker;
