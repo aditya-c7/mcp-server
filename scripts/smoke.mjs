@@ -6,6 +6,8 @@ const BASE = (process.env.MCP_URL || process.argv[2] || "http://localhost:8787")
 const ENDPOINT = `${BASE}/mcp`;
 const HEALTH = `${BASE}/health`;
 const TIMEOUT_MS = 15_000;
+// Set SMOKE_EXPECT_MISS=0 when the endpoint's cache is already warm from an earlier run.
+const EXPECT_FIRST_MISS = process.env.SMOKE_EXPECT_MISS !== "0";
 
 let sessionId = null;
 let nextId = 1;
@@ -207,7 +209,11 @@ async function main() {
 		check("count equals subdomains length", firstData.count === firstSubs.length, `count=${firstData.count} length=${firstSubs.length}`);
 		check("total_seen >= count", typeof firstData.total_seen === "number" && firstData.total_seen >= firstData.count, `total_seen=${firstData.total_seen} count=${firstData.count}`);
 		check("truncated is boolean", typeof firstData.truncated === "boolean", `got ${typeof firstData.truncated}`);
-		check("cached is false on first call", firstData.cached === false, `got ${JSON.stringify(firstData.cached)}`);
+		if (EXPECT_FIRST_MISS) {
+			check("cached is false on first call", firstData.cached === false, `got ${JSON.stringify(firstData.cached)}`);
+		} else {
+			info("first call cache state", JSON.stringify(firstData.cached));
+		}
 		check("note is a string", typeof firstData.note === "string", `got ${typeof firstData.note}`);
 		const badKeys = Object.keys(firstData).filter((key) => FORBIDDEN_DATA_KEYS.includes(key.toLowerCase()));
 		check("result has no forbidden keys", badKeys.length === 0, `found ${badKeys.length} forbidden key(s)`);

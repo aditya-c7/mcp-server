@@ -108,16 +108,16 @@ node scripts/leak-scan.mjs
 node scripts/smoke.mjs   # or: npm test
 ```
 
+For a warm cache, run with `SMOKE_EXPECT_MISS=0`. Point at production with `MCP_URL=https://server.adityahq.me`.
+
 ## Deployment
 
 Cloudflare Workers Git build on push to `main` deploys the `mcp-server` Worker that owns the custom domain. No local `wrangler deploy`.
 
 ## Tested
 
-Locally verified:
-
-- MCP Inspector GUI connected to `http://localhost:8787/mcp`; protocol-level `tools/list` showed only `list_subdomains` (smoke harness).
-- `node scripts/smoke.mjs`: SMOKE PASS (49 checks) — health, initialize, `tools/list`, `cached: false` then `cached: true`, rejection cases (URL, localhost, raw IP, subdomain, `www.example.co.uk`), leading-`www` exception.
+- MCP Inspector GUI connected to `http://localhost:8787/mcp` and to `https://server.adityahq.me/mcp`. Both showed one tool, `list_subdomains`, and a successful call with a non-empty result.
+- `node scripts/smoke.mjs`: local SMOKE PASS (49 checks, cold cache) — health, initialize, `tools/list`, `cached: false` then `cached: true`, rejection cases, leading-`www` exception. Production SMOKE PASS (48 checks, warm cache; `SMOKE_EXPECT_MISS=0`).
 - `npx tsc --noEmit`: exit 0.
 - `node scripts/leak-scan.mjs`: LEAK SCAN PASS.
 
