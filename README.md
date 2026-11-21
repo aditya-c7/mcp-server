@@ -1,17 +1,11 @@
 # subdomain-index
 
-A small, read-only Model Context Protocol (MCP) server that lists publicly indexed names for one apex domain. It is meant to be consumed as a remote tool server by MCP clients.
+Read-only MCP server that lists publicly indexed names for one apex domain. No authentication; Streamable HTTP transport.
 
 - Public MCP URL: `https://server.adityahq.me/mcp`
-- Authentication: none (no OAuth, no sign-in, no API key)
-- Transport: Streamable HTTP
-- Tools: one, `list_subdomains`
-
-The server reads only from a public index. It does not probe hosts, change anything, or require credentials.
+- Tool: `list_subdomains`
 
 ## Tool: `list_subdomains`
-
-Lists publicly indexed names for one apex domain.
 
 Input:
 
@@ -23,9 +17,9 @@ Input:
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `domain` | `string` | yes | A single registrable apex domain, for example `adityahq.me`. |
+| `domain` | `string` | yes | Single registrable apex domain, e.g. `adityahq.me`. |
 
-Public description / behavior (verbatim):
+Description returned to clients:
 
 > List publicly indexed names for one apex domain.
 > Pass only the registrable apex, such as example.com or adityahq.me.
@@ -34,9 +28,9 @@ Public description / behavior (verbatim):
 > Not checked for whether they are online.
 > On failure, say the lookup failed. Never invent names.
 
-Results are lowercased, deduplicated, sorted, and capped at 100 names. Annotations: `readOnlyHint: true`, `openWorldHint: true`, `destructiveHint: false`.
+Results are lowercased, deduplicated, sorted, and capped at 100. Annotations: `readOnlyHint: true`, `openWorldHint: true`, `destructiveHint: false`.
 
-Sample success payload (shape only; names come from the live index):
+Example response:
 
 ```json
 {
@@ -62,46 +56,41 @@ npm install
 npm run dev
 ```
 
-`wrangler dev` listens on port 8787 by default, so the local MCP endpoint is `http://localhost:8787/mcp`.
+Local MCP endpoint: `http://localhost:8787/mcp`.
 
-Connect with MCP Inspector:
+MCP Inspector:
 
 ```sh
 npx @modelcontextprotocol/inspector@latest
 ```
 
-In the Inspector UI:
+1. Transport: Streamable HTTP.
+2. URL: `http://localhost:8787/mcp`.
+3. Connect, List tools: only `list_subdomains`; confirm its description and schema contain no lookup URL.
+4. Call with `{"domain": "adityahq.me"}`, then call again: the second result has `cached: true`.
 
-1. Set Transport to Streamable HTTP.
-2. Set URL to `http://localhost:8787/mcp`.
-3. Connect, then choose List tools. Only `list_subdomains` should appear. Confirm its description and schema contain no lookup URL.
-4. Call `list_subdomains` with `{"domain": "adityahq.me"}`. Call it again: the second result should have `cached: true`.
-
-`GET /health` returns the plain-text body `ok`. It is only a liveness check and is not the MCP URL.
+`GET /health` returns `ok` (liveness only).
 
 ## Checks
 
 ```sh
-npx tsc --noEmit   # type check
-npm test           # local JSON-RPC smoke test against http://localhost:8787
+npx tsc --noEmit
+node scripts/leak-scan.mjs
+node scripts/smoke.mjs   # or: npm test
 ```
 
 ## Deploy
 
-Deployment is handled by a Cloudflare Workers Git build: pushing to `main` builds and deploys the `mcp-server` Worker that owns the custom domain. Do not run `wrangler deploy` locally.
-
-The public endpoint is `https://server.adityahq.me/mcp`.
+Cloudflare Workers Git build on push to `main` deploys the `mcp-server` Worker that owns the custom domain. No local `wrangler deploy`.
 
 ## Tested
 
-Verified locally during development:
+Locally verified:
 
-- MCP Inspector GUI connected to local `http://localhost:8787/mcp` (server title shown). Protocol-level `tools/list` discovery — only `list_subdomains` appears — was verified by the smoke harness.
-- `node scripts/smoke.mjs`: SMOKE PASS (49 checks) — health, initialize, `tools/list`, first call `cached: false`, second call `cached: true`, rejection cases (URL, localhost, raw IP, subdomain, `www.example.co.uk`), and the leading-`www` exception.
+- MCP Inspector GUI connected to `http://localhost:8787/mcp`; protocol-level `tools/list` showed only `list_subdomains` (smoke harness).
+- `node scripts/smoke.mjs`: SMOKE PASS (49 checks) — health, initialize, `tools/list`, `cached: false` then `cached: true`, rejection cases (URL, localhost, raw IP, subdomain, `www.example.co.uk`), leading-`www` exception.
 - `npx tsc --noEmit`: exit 0.
 - `node scripts/leak-scan.mjs`: LEAK SCAN PASS.
-
-Production behavior was not verified here; the public endpoint and deployment are not claimed as tested.
 
 ## Not tested / user steps
 
