@@ -1,23 +1,38 @@
+<div align="center">
+
 # subdomain-index
 
-Read-only MCP server that lists publicly indexed names for one apex domain. No authentication; Streamable HTTP transport.
+### Read-only MCP server for indexed apex-domain names
 
-- Public MCP URL: `https://server.adityahq.me/mcp`
-- Tool: `list_subdomains`
+[![Public endpoint](https://img.shields.io/badge/Public_endpoint-server.adityahq.me-2563EB)](https://server.adityahq.me/mcp)
+[![Transport](https://img.shields.io/badge/Transport-Streamable_HTTP-0891B2)](#tool-contract)
+[![Deployment](https://img.shields.io/badge/Deployment-Cloudflare_Workers-F38020?logo=cloudflare&logoColor=white)](#deployment)
 
-## Tool: `list_subdomains`
+</div>
+
+## What it does
+
+Exposes one MCP tool, `list_subdomains`, which returns publicly indexed names for a single apex domain. No authentication. Results are lowercased, deduplicated, sorted, and capped at 100.
+
+## Tool contract
 
 Input:
 
-```json
-{
-  "domain": "adityahq.me"
-}
-```
-
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `domain` | `string` | yes | Single registrable apex domain, e.g. `adityahq.me`. |
+| `domain` | `string` | yes | Single registrable apex domain, e.g. `adityahq.me` |
+
+Response fields:
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `domain` | `string` | Queried apex domain |
+| `count` | `number` | Names returned |
+| `total_seen` | `number` | Names found before truncation |
+| `truncated` | `boolean` | Whether results were capped |
+| `subdomains` | `string[]` | Indexed names, deduplicated and sorted |
+| `cached` | `boolean` | Whether the result came from cache |
+| `note` | `string` | Fixed disclaimer text |
 
 Description returned to clients:
 
@@ -28,7 +43,13 @@ Description returned to clients:
 > Not checked for whether they are online.
 > On failure, say the lookup failed. Never invent names.
 
-Results are lowercased, deduplicated, sorted, and capped at 100. Annotations: `readOnlyHint: true`, `openWorldHint: true`, `destructiveHint: false`.
+Annotations: `readOnlyHint: true`, `openWorldHint: true`, `destructiveHint: false`.
+
+Example input:
+
+```json
+{ "domain": "adityahq.me" }
+```
 
 Example response:
 
@@ -49,6 +70,16 @@ Example response:
 }
 ```
 
+## How it works
+
+1. Client sends a JSON-RPC request to `/mcp` over Streamable HTTP.
+2. The handler validates the `Host` header against an allowlist.
+3. Tool input is checked: only a single registrable apex domain is accepted.
+4. Names are read from a public index, normalized, deduplicated, sorted, capped, and cached.
+5. Success returns a JSON-RPC tool result; failure returns `isError: true` with a plain message.
+
+`GET /health` returns `ok` (liveness only).
+
 ## Local development
 
 ```sh
@@ -66,12 +97,10 @@ npx @modelcontextprotocol/inspector@latest
 
 1. Transport: Streamable HTTP.
 2. URL: `http://localhost:8787/mcp`.
-3. Connect, List tools: only `list_subdomains`; confirm its description and schema contain no lookup URL.
+3. Connect, List tools: only `list_subdomains`; confirm its description and input schema match the contract above.
 4. Call with `{"domain": "adityahq.me"}`, then call again: the second result has `cached: true`.
 
-`GET /health` returns `ok` (liveness only).
-
-## Checks
+## Verification
 
 ```sh
 npx tsc --noEmit
@@ -79,7 +108,7 @@ node scripts/leak-scan.mjs
 node scripts/smoke.mjs   # or: npm test
 ```
 
-## Deploy
+## Deployment
 
 Cloudflare Workers Git build on push to `main` deploys the `mcp-server` Worker that owns the custom domain. No local `wrangler deploy`.
 
