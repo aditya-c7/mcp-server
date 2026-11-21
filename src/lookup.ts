@@ -1,4 +1,4 @@
-const SOURCE_ENDPOINT = 'https://crt.sh/?q={domain}&output=json';
+const SOURCE_ENDPOINT = 'https://crt.name/v1/search?apex={domain}';
 
 const CACHE_TTL_SECONDS = 600;
 const MAX_NAMES = 100;
