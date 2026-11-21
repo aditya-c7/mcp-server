@@ -5,7 +5,7 @@
 const BASE = (process.env.MCP_URL || process.argv[2] || "http://localhost:8787").replace(/\/+$/, "");
 const ENDPOINT = `${BASE}/mcp`;
 const HEALTH = `${BASE}/health`;
-const TIMEOUT_MS = 15_000;
+const TIMEOUT_MS = 30_000;
 // Set SMOKE_EXPECT_MISS=0 when the endpoint's cache is already warm from an earlier run.
 const EXPECT_FIRST_MISS = process.env.SMOKE_EXPECT_MISS !== "0";
 

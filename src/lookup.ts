@@ -1,9 +1,13 @@
-const PRIMARY_ENDPOINT = 'https://www.virustotal.com/api/v3/domains/{domain}/subdomains?limit=40';
-const FALLBACK_ENDPOINT = 'https://crt.name/v1/search?apex={domain}';
+const APEX_SEARCH_ENDPOINT = 'https://crt.name/v1/search?apex={domain}';
+const KEYED_SUBDOMAIN_ENDPOINT = 'https://www.virustotal.com/api/v3/domains/{domain}/subdomains?limit=40';
+const ISSUANCE_SEARCH_ENDPOINT = 'https://api.certspotter.com/v1/issuances?domain={domain}&include_subdomains=true&expand=dns_names';
+const WEB_SEARCH_ENDPOINT = 'https://urlscan.io/api/v1/search/?q=domain:{domain}&size=100';
+const HOST_SEARCH_ENDPOINT = 'https://api.hackertarget.com/hostsearch/?q={domain}';
+const CACHE_KEY_PREFIX = 'https://cache.internal/subdomains/';
 
 const CACHE_TTL_SECONDS = 3600;
 const MAX_NAMES = 100;
-const TIMEOUT_MS = 8000;
+const TIMEOUT_MS = 4000;
 const USER_AGENT = 'subdomain-index/1.0';
 
 const TIMEOUT_TEXT = 'Lookup timed out or was unreachable. Try again.';
@@ -93,51 +97,14 @@ interface ParsedNames {
 	truncated: boolean;
 }
 
-function parseNames(text: string): ParsedNames {
-	const raw: string[] = [];
-	let parsed: unknown;
-	try {
-		parsed = JSON.parse(text);
-	} catch {
-		parsed = undefined;
-	}
-
-	if (Array.isArray(parsed)) {
-		for (const item of parsed) {
-			if (typeof item === 'string') {
-				raw.push(...item.split(/\r?\n/));
-			} else if (item !== null && typeof item === 'object') {
-				const value = (item as Record<string, unknown>).name_value;
-				if (typeof value === 'string') {
-					raw.push(...value.split(/\r?\n/));
-				}
-			}
-		}
-	} else if (parsed !== null && typeof parsed === 'object') {
-		const data = (parsed as Record<string, unknown>).data;
-		if (Array.isArray(data)) {
-			for (const item of data) {
-				if (item !== null && typeof item === 'object') {
-					const id = (item as Record<string, unknown>).id;
-					if (typeof id === 'string') {
-						raw.push(id);
-					}
-				}
-			}
-		} else {
-			raw.push(...text.split(/\r?\n/));
-		}
-	} else {
-		raw.push(...text.split(/\r?\n/));
-	}
-
+function normalizeNames(raw: string[]): ParsedNames {
 	const unique = new Set<string>();
 	for (const entry of raw) {
 		let name = entry.trim().toLowerCase();
 		if (name.startsWith('*.')) {
 			name = name.slice(2).trim();
 		}
-		if (name.length > 0) {
+		if (name.length > 0 && !/\s/.test(name) && !/[<>"']/.test(name)) {
 			unique.add(name);
 		}
 	}
@@ -149,6 +116,87 @@ function parseNames(text: string): ParsedNames {
 		truncated: sorted.length > MAX_NAMES
 	};
 }
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null;
+}
+
+function safeJson(text: string): unknown {
+	try {
+		return JSON.parse(text) as unknown;
+	} catch {
+		return undefined;
+	}
+}
+
+type NameParser = (body: string, apex: string) => string[];
+
+const parsePlainLines: NameParser = (body) => body.split(/\r?\n/);
+
+const parseKeyed: NameParser = (body) => {
+	const out: string[] = [];
+	const parsed = safeJson(body);
+	if (isRecord(parsed) && Array.isArray(parsed.data)) {
+		for (const item of parsed.data as unknown[]) {
+			if (isRecord(item) && typeof item.id === 'string') {
+				out.push(item.id);
+			}
+		}
+	}
+	return out;
+};
+
+const parseIssuances: NameParser = (body) => {
+	const out: string[] = [];
+	const parsed = safeJson(body);
+	if (Array.isArray(parsed)) {
+		for (const item of parsed as unknown[]) {
+			if (isRecord(item) && Array.isArray(item.dns_names)) {
+				for (const name of item.dns_names as unknown[]) {
+					if (typeof name === 'string') {
+						out.push(name);
+					}
+				}
+			}
+		}
+	}
+	return out;
+};
+
+const parseWebSearch: NameParser = (body, apex) => {
+	const out: string[] = [];
+	const parsed = safeJson(body);
+	if (isRecord(parsed) && Array.isArray(parsed.results)) {
+		for (const item of parsed.results as unknown[]) {
+			if (!isRecord(item)) {
+				continue;
+			}
+			const page = isRecord(item.page) ? item.page.domain : undefined;
+			const task = isRecord(item.task) ? item.task.domain : undefined;
+			for (const value of [page, task]) {
+				if (typeof value !== 'string') {
+					continue;
+				}
+				const lowered = value.toLowerCase();
+				if (lowered === apex || lowered.endsWith('.' + apex)) {
+					out.push(value);
+				}
+			}
+		}
+	}
+	return out;
+};
+
+const parseHostSearch: NameParser = (body) => {
+	const out: string[] = [];
+	for (const line of body.split(/\r?\n/)) {
+		const comma = line.indexOf(',');
+		if (comma > 0) {
+			out.push(line.slice(0, comma));
+		}
+	}
+	return out;
+};
 
 interface CachedValue {
 	names: string[];
@@ -171,22 +219,28 @@ function isCachedValue(value: unknown): value is CachedValue {
 
 type FailureReason = 'timeout' | 'unavailable' | 'no_result';
 
+interface SourceTask {
+	url: string;
+	parse: NameParser;
+	apiKey?: string;
+}
+
 type FetchAttempt =
 	| { ok: true; parsed: ParsedNames }
 	| { ok: false; reason: FailureReason };
 
-async function fetchNames(endpoint: string, apiKey?: string): Promise<FetchAttempt> {
+async function fetchFrom(task: SourceTask, target: string, apex: string): Promise<FetchAttempt> {
 	const controller = new AbortController();
 	const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 	try {
 		const headers: Record<string, string> = { 'User-Agent': USER_AGENT };
-		if (apiKey !== undefined) {
-			headers['x-apikey'] = apiKey;
+		if (task.apiKey !== undefined) {
+			headers['x-apikey'] = task.apiKey;
 		}
 
 		let response: Response;
 		try {
-			response = await fetch(endpoint, {
+			response = await fetch(task.url.replace('{domain}', target), {
 				method: 'GET',
 				headers,
 				signal: controller.signal
@@ -209,7 +263,14 @@ async function fetchNames(endpoint: string, apiKey?: string): Promise<FetchAttem
 			return { ok: false, reason: 'timeout' };
 		}
 
-		const parsed = parseNames(body);
+		let raw: string[];
+		try {
+			raw = task.parse(body, apex);
+		} catch {
+			return { ok: false, reason: 'no_result' };
+		}
+
+		const parsed = normalizeNames(raw);
 		if (parsed.names.length === 0) {
 			return { ok: false, reason: 'no_result' };
 		}
@@ -219,12 +280,12 @@ async function fetchNames(endpoint: string, apiKey?: string): Promise<FetchAttem
 	}
 }
 
-function failureText(reason: FailureReason): string {
-	if (reason === 'timeout') {
-		return TIMEOUT_TEXT;
-	}
-	if (reason === 'unavailable') {
+function selectFailure(reasons: FailureReason[]): string {
+	if (reasons.length > 0 && reasons.every((reason) => reason === 'unavailable')) {
 		return UNAVAILABLE_TEXT;
+	}
+	if (reasons.some((reason) => reason === 'timeout')) {
+		return TIMEOUT_TEXT;
 	}
 	return NO_RESULT_TEXT;
 }
@@ -236,7 +297,7 @@ export async function lookup(rawDomain: string, env: LookupEnv = {}): Promise<Lo
 	}
 	const apex = normalized.apex;
 
-	const keyRequest = new Request(`https://cache.internal/subdomains/${apex}`);
+	const keyRequest = new Request(CACHE_KEY_PREFIX + apex);
 	try {
 		const cachedResponse = await caches.default.match(keyRequest);
 		if (cachedResponse) {
@@ -254,30 +315,33 @@ export async function lookup(rawDomain: string, env: LookupEnv = {}): Promise<Lo
 	}
 
 	const target = encodeURIComponent(apex);
-	let parsed: ParsedNames | undefined;
-	let lastReason: FailureReason = 'no_result';
-
 	const apiKey = env.VT_API_KEY;
+
+	const tasks: SourceTask[] = [
+		{ url: APEX_SEARCH_ENDPOINT, parse: parsePlainLines }
+	];
 	if (apiKey) {
-		const primary = await fetchNames(PRIMARY_ENDPOINT.replace('{domain}', target), apiKey);
-		if (primary.ok) {
-			parsed = primary.parsed;
-		} else {
-			lastReason = primary.reason;
+		tasks.push({ url: KEYED_SUBDOMAIN_ENDPOINT, parse: parseKeyed, apiKey });
+	}
+	tasks.push(
+		{ url: ISSUANCE_SEARCH_ENDPOINT, parse: parseIssuances },
+		{ url: WEB_SEARCH_ENDPOINT, parse: parseWebSearch },
+		{ url: HOST_SEARCH_ENDPOINT, parse: parseHostSearch }
+	);
+
+	const reasons: FailureReason[] = [];
+	let parsed: ParsedNames | undefined;
+	for (const task of tasks) {
+		const attempt = await fetchFrom(task, target, apex);
+		if (attempt.ok) {
+			parsed = attempt.parsed;
+			break;
 		}
+		reasons.push(attempt.reason);
 	}
 
 	if (parsed === undefined) {
-		const fallback = await fetchNames(FALLBACK_ENDPOINT.replace('{domain}', target));
-		if (fallback.ok) {
-			parsed = fallback.parsed;
-		} else {
-			lastReason = fallback.reason;
-		}
-	}
-
-	if (parsed === undefined) {
-		return failure(failureText(lastReason));
+		return failure(selectFailure(reasons));
 	}
 
 	const cacheBody = JSON.stringify({

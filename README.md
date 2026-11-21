@@ -75,7 +75,7 @@ Example response:
 1. Client sends a JSON-RPC request to `/mcp` over Streamable HTTP.
 2. The handler validates the `Host` header against an allowlist.
 3. Tool input is checked: only a single registrable apex domain is accepted.
-4. Names are read from a public index, normalized, deduplicated, sorted, capped, and cached.
+4. Several passive public indexes are tried in order. Each gets a short timeout; the first usable result wins and failed sources are skipped silently. Names are normalized, deduplicated, sorted, and capped.
 5. Success returns a JSON-RPC tool result; failure returns `isError: true` with a plain message.
 
 Results are cached for 1 hour.
@@ -118,7 +118,7 @@ Cloudflare Workers Git build on push to `main` deploys the `mcp-server` Worker t
 
 ## Configuration
 
-The Worker reads an optional runtime secret named `VT_API_KEY`. Set it as a Cloudflare Worker secret, in the dashboard under Secrets or with `wrangler secret put VT_API_KEY`. It is never committed to the repository. Without it, the Worker uses the unauthenticated fallback automatically.
+The Worker reads an optional runtime secret named `VT_API_KEY`. Set it as a Cloudflare Worker secret, in the dashboard under Secrets or with `wrangler secret put VT_API_KEY`. It is never committed to the repository. It enables one optional keyed source among several; lookups work without it using the remaining sources.
 
 ## Tested
 
