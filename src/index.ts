@@ -1,7 +1,8 @@
+import { env } from 'cloudflare:workers';
 import { createMcpHandler } from 'agents/mcp/server';
 import { McpServer } from '@modelcontextprotocol/server';
 import { z } from 'zod';
-import { lookup } from './lookup';
+import { lookup, type LookupEnv } from './lookup';
 
 const DESCRIPTION =
 	'List publicly indexed names for one apex domain.\n' +
@@ -26,7 +27,7 @@ const handler = createMcpHandler(
 				}
 			},
 			async ({ domain }) => {
-				const result = await lookup(domain);
+				const result = await lookup(domain, env as Env & LookupEnv);
 				if (!result.ok) {
 					return {
 						isError: true,

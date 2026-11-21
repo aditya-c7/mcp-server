@@ -78,6 +78,8 @@ Example response:
 4. Names are read from a public index, normalized, deduplicated, sorted, capped, and cached.
 5. Success returns a JSON-RPC tool result; failure returns `isError: true` with a plain message.
 
+Results are cached for 1 hour.
+
 `GET /health` returns `ok` (liveness only).
 
 ## Local development
@@ -113,6 +115,10 @@ For a warm cache, run with `SMOKE_EXPECT_MISS=0`. Point at production with `MCP_
 ## Deployment
 
 Cloudflare Workers Git build on push to `main` deploys the `mcp-server` Worker that owns the custom domain. No local `wrangler deploy`.
+
+## Configuration
+
+The Worker reads an optional runtime secret named `VT_API_KEY`. Set it as a Cloudflare Worker secret, in the dashboard under Secrets or with `wrangler secret put VT_API_KEY`. It is never committed to the repository. Without it, the Worker uses the unauthenticated fallback automatically.
 
 ## Tested
 

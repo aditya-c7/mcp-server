@@ -1,8 +1,10 @@
-const SOURCE_ENDPOINT = 'https://crt.name/v1/search?apex={domain}';
+const PRIMARY_ENDPOINT = 'https://www.virustotal.com/api/v3/domains/{domain}/subdomains?limit=40';
+const FALLBACK_ENDPOINT = 'https://crt.name/v1/search?apex={domain}';
 
-const CACHE_TTL_SECONDS = 600;
+const CACHE_TTL_SECONDS = 3600;
 const MAX_NAMES = 100;
 const TIMEOUT_MS = 8000;
+const USER_AGENT = 'subdomain-index/1.0';
 
 const TIMEOUT_TEXT = 'Lookup timed out or was unreachable. Try again.';
 const UNAVAILABLE_TEXT = 'Lookup is temporarily unavailable. Cached results still work. Try again later.';
@@ -13,6 +15,10 @@ const NOTE = 'Indexed names only. Not a complete list. Not checked if they are o
 
 const HOSTNAME_RE = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
 const IPV4_RE = /^\d{1,3}(?:\.\d{1,3}){3}$/;
+
+export interface LookupEnv {
+	VT_API_KEY?: string;
+}
 
 export type LookupOutcome = { ok: true; text: string } | { ok: false; message: string };
 
@@ -107,6 +113,20 @@ function parseNames(text: string): ParsedNames {
 				}
 			}
 		}
+	} else if (parsed !== null && typeof parsed === 'object') {
+		const data = (parsed as Record<string, unknown>).data;
+		if (Array.isArray(data)) {
+			for (const item of data) {
+				if (item !== null && typeof item === 'object') {
+					const id = (item as Record<string, unknown>).id;
+					if (typeof id === 'string') {
+						raw.push(id);
+					}
+				}
+			}
+		} else {
+			raw.push(...text.split(/\r?\n/));
+		}
 	} else {
 		raw.push(...text.split(/\r?\n/));
 	}
@@ -149,7 +169,67 @@ function isCachedValue(value: unknown): value is CachedValue {
 	);
 }
 
-export async function lookup(rawDomain: string): Promise<LookupOutcome> {
+type FailureReason = 'timeout' | 'unavailable' | 'no_result';
+
+type FetchAttempt =
+	| { ok: true; parsed: ParsedNames }
+	| { ok: false; reason: FailureReason };
+
+async function fetchNames(endpoint: string, apiKey?: string): Promise<FetchAttempt> {
+	const controller = new AbortController();
+	const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+	try {
+		const headers: Record<string, string> = { 'User-Agent': USER_AGENT };
+		if (apiKey !== undefined) {
+			headers['x-apikey'] = apiKey;
+		}
+
+		let response: Response;
+		try {
+			response = await fetch(endpoint, {
+				method: 'GET',
+				headers,
+				signal: controller.signal
+			});
+		} catch {
+			return { ok: false, reason: 'timeout' };
+		}
+
+		if (response.status === 429) {
+			return { ok: false, reason: 'unavailable' };
+		}
+		if (response.status !== 200) {
+			return { ok: false, reason: 'no_result' };
+		}
+
+		let body: string;
+		try {
+			body = await response.text();
+		} catch {
+			return { ok: false, reason: 'timeout' };
+		}
+
+		const parsed = parseNames(body);
+		if (parsed.names.length === 0) {
+			return { ok: false, reason: 'no_result' };
+		}
+		return { ok: true, parsed };
+	} finally {
+		clearTimeout(timer);
+	}
+}
+
+function failureText(reason: FailureReason): string {
+	if (reason === 'timeout') {
+		return TIMEOUT_TEXT;
+	}
+	if (reason === 'unavailable') {
+		return UNAVAILABLE_TEXT;
+	}
+	return NO_RESULT_TEXT;
+}
+
+export async function lookup(rawDomain: string, env: LookupEnv = {}): Promise<LookupOutcome> {
 	const normalized = normalizeApex(rawDomain);
 	if (!normalized.ok) {
 		return failure(normalized.message);
@@ -173,60 +253,50 @@ export async function lookup(rawDomain: string): Promise<LookupOutcome> {
 		// Cache unavailable; continue with a fresh lookup.
 	}
 
-	const endpoint = SOURCE_ENDPOINT.replace('{domain}', encodeURIComponent(apex));
-	const controller = new AbortController();
-	const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-	try {
-		let response: Response;
-		try {
-			response = await fetch(endpoint, {
-				method: 'GET',
-				headers: { 'User-Agent': 'subdomain-index/1.0' },
-				signal: controller.signal
-			});
-		} catch {
-			return failure(TIMEOUT_TEXT);
-		}
+	const target = encodeURIComponent(apex);
+	let parsed: ParsedNames | undefined;
+	let lastReason: FailureReason = 'no_result';
 
-		if (response.status === 429) {
-			return failure(UNAVAILABLE_TEXT);
+	const apiKey = env.VT_API_KEY;
+	if (apiKey) {
+		const primary = await fetchNames(PRIMARY_ENDPOINT.replace('{domain}', target), apiKey);
+		if (primary.ok) {
+			parsed = primary.parsed;
+		} else {
+			lastReason = primary.reason;
 		}
-		if (response.status !== 200) {
-			return failure(NO_RESULT_TEXT);
-		}
-
-		let body: string;
-		try {
-			body = await response.text();
-		} catch {
-			return failure(TIMEOUT_TEXT);
-		}
-
-		const parsed = parseNames(body);
-		if (parsed.names.length === 0) {
-			return failure(NO_RESULT_TEXT);
-		}
-
-		const cacheBody = JSON.stringify({
-			names: parsed.names,
-			total_seen: parsed.totalSeen,
-			truncated: parsed.truncated
-		});
-		const cacheResponse = new Response(cacheBody, {
-			status: 200,
-			headers: {
-				'Content-Type': 'application/json',
-				'Cache-Control': `max-age=${CACHE_TTL_SECONDS}`
-			}
-		});
-		try {
-			await caches.default.put(keyRequest, cacheResponse);
-		} catch {
-			// Ignore cache write failures.
-		}
-
-		return success(apex, parsed.names, parsed.totalSeen, parsed.truncated, false);
-	} finally {
-		clearTimeout(timer);
 	}
+
+	if (parsed === undefined) {
+		const fallback = await fetchNames(FALLBACK_ENDPOINT.replace('{domain}', target));
+		if (fallback.ok) {
+			parsed = fallback.parsed;
+		} else {
+			lastReason = fallback.reason;
+		}
+	}
+
+	if (parsed === undefined) {
+		return failure(failureText(lastReason));
+	}
+
+	const cacheBody = JSON.stringify({
+		names: parsed.names,
+		total_seen: parsed.totalSeen,
+		truncated: parsed.truncated
+	});
+	const cacheResponse = new Response(cacheBody, {
+		status: 200,
+		headers: {
+			'Content-Type': 'application/json',
+			'Cache-Control': `max-age=${CACHE_TTL_SECONDS}`
+		}
+	});
+	try {
+		await caches.default.put(keyRequest, cacheResponse);
+	} catch {
+		// Ignore cache write failures.
+	}
+
+	return success(apex, parsed.names, parsed.totalSeen, parsed.truncated, false);
 }
