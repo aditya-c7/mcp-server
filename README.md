@@ -20,7 +20,7 @@ Input:
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `domain` | `string` | yes | Single registrable apex domain, e.g. `adityahq.me` |
+| `domain` | `string` | yes | Single registrable apex domain, e.g. `example.com` |
 
 Response fields:
 
@@ -37,7 +37,7 @@ Response fields:
 Description returned to clients:
 
 > List publicly indexed names for one apex domain.
-> Pass only the registrable apex, such as example.com or adityahq.me.
+> Pass only the registrable apex, such as example.com or example.org.
 > Not a URL, not a subdomain, not an IP.
 > Results are indexed names only. Not a complete list.
 > Not checked for whether they are online.
@@ -48,22 +48,22 @@ Annotations: `readOnlyHint: true`, `openWorldHint: true`, `destructiveHint: fals
 Example input:
 
 ```json
-{ "domain": "adityahq.me" }
+{ "domain": "example.com" }
 ```
 
 Example response:
 
 ```json
 {
-  "domain": "adityahq.me",
+  "domain": "example.com",
   "count": 4,
   "total_seen": 4,
   "truncated": false,
   "subdomains": [
-    "adityahq.me",
-    "intel.adityahq.me",
-    "portfolio.adityahq.me",
-    "www.adityahq.me"
+    "api.example.com",
+    "docs.example.com",
+    "example.com",
+    "www.example.com"
   ],
   "cached": false,
   "note": "Indexed names only. Not a complete list. Not checked if they are online."
@@ -98,7 +98,7 @@ npx @modelcontextprotocol/inspector@latest
 1. Transport: Streamable HTTP.
 2. URL: `http://localhost:8787/mcp`.
 3. Connect, List tools: only `list_subdomains`; confirm its description and input schema match the contract above.
-4. Call with `{"domain": "adityahq.me"}`, then call again: the second result has `cached: true`.
+4. Call with `{"domain": "example.com"}`, then call again: the second result has `cached: true`.
 
 ## Verification
 
@@ -132,5 +132,5 @@ The client connection steps below are provided as user steps only. They have not
 ## Demo prompt
 
 ```
-Use list_subdomains on adityahq.me. Return the tool result only. Do not guess extra names.
+Use list_subdomains on example.com. Return the tool result only. Do not guess extra names.
 ```

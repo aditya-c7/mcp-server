@@ -5,7 +5,7 @@ import { lookup } from './lookup';
 
 const DESCRIPTION =
 	'List publicly indexed names for one apex domain.\n' +
-	'Pass only the registrable apex, such as example.com or adityahq.me.\n' +
+	'Pass only the registrable apex, such as example.com or example.org.\n' +
 	'Not a URL, not a subdomain, not an IP.\n' +
 	'Results are indexed names only. Not a complete list.\n' +
 	'Not checked for whether they are online.\n' +
