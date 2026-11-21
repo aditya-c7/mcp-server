@@ -125,6 +125,7 @@ The Worker reads an optional runtime secret named `VT_API_KEY`. Set it as a Clou
 - MCP Inspector GUI connected to `http://localhost:8787/mcp` and to `https://server.adityahq.me/mcp`. Both showed one tool, `list_subdomains`, and a successful call with a non-empty result.
 - Production cold lookup `cloudflare.com`: HTTP 200 in 1.4 s, `cached:false`, 100 returned names, `truncated:true`.
 - `aryanbudke.in`: 5 names returned in 703 ms (`cached:true`).
+- `xevrion.dev`: 14 names returned in 2.0 s (`cached:false`) after the primary/fallback change.
 - `node scripts/smoke.mjs`: local SMOKE PASS (49 checks, cold cache) — health, initialize, `tools/list`, `cached: false` then `cached: true`, rejection cases, leading-`www` exception. Production SMOKE PASS (48 checks, warm cache; `SMOKE_EXPECT_MISS=0`).
 - `npx tsc --noEmit`: exit 0.
 - `node scripts/leak-scan.mjs`: LEAK SCAN PASS.
