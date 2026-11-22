@@ -3,6 +3,7 @@ import { createMcpHandler } from 'agents/mcp/server';
 import { McpServer } from '@modelcontextprotocol/server';
 import { z } from 'zod';
 import { lookup, type LookupEnv } from './lookup';
+import { LANDING_HTML } from './landing';
 
 const DESCRIPTION =
 	'List publicly indexed names for one apex domain.\n' +
@@ -59,6 +60,11 @@ const worker = {
 		if (url.pathname === '/health' && request.method === 'GET') {
 			return new Response('ok', {
 				headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+			});
+		}
+		if (url.pathname === '/' && request.method === 'GET') {
+			return new Response(LANDING_HTML, {
+				headers: { 'Content-Type': 'text/html; charset=utf-8' }
 			});
 		}
 		return handler(request, env, ctx);
