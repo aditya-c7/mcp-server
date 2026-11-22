@@ -3,30 +3,268 @@
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<title>Hello, World!</title>
+		<meta name="description" content="Subdomain Finder — an MCP server that queries live subdomains directly from your assistant." />
+		<meta name="theme-color" content="#09090B" />
+		<title>Subdomain Finder — MCP Server</title>
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+		<link rel="stylesheet" href="/styles.css" />
+		<link rel="stylesheet" href="/clients.css" />
 	</head>
 	<body>
-		<h1 id="heading"></h1>
-		<p>This page comes from a static asset stored at `public/index.html` as configured in `wrangler.jsonc`.</p>
-		<button id="button" type="button">Fetch a random UUID</button>
-		<output id="random" for="button"></output>
-		<script>
-			fetch('/message')
-				.then((resp) => resp.text())
-				.then((text) => {
-					const h1 = document.getElementById('heading');
-					h1.textContent = text;
-				});
+		<header class="topbar">
+			<div class="brand">
+				<svg class="ico brand-dot" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="12" r="4.5" /></svg>
+				<span class="brand-name">Subdomain Finder</span>
+				<span class="brand-sep" aria-hidden="true">/</span>
+				<span class="brand-mcp">MCP Server</span>
+			</div>
 
-			const button = document.getElementById("button");
-			button.addEventListener("click", () => {
-				fetch('/random')
-					.then((resp) => resp.text())
-					.then((text) => {
-						const random = document.getElementById('random');
-						random.textContent = text;
-					});
-			});
-		</script>
+			<div class="top-actions">
+				<button id="copyBtn" class="endpoint-pill" type="button" aria-label="Copy the MCP endpoint URL to the clipboard">
+					<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+						<path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1 1" />
+						<path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1-1" />
+					</svg>
+					<span class="endpoint-text" id="endpointText">https://server.adityahq.me/mcp</span>
+					<svg class="ico copy-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+						<rect x="9" y="9" width="11" height="11" rx="2" />
+						<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+					</svg>
+				</button>
+
+				<a class="repo-link" href="https://github.com/aditya-c7/mcp-server" target="_blank" rel="noopener noreferrer" aria-label="View the source repository on GitHub">
+					<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+						<path d="M4 20V6a2 2 0 0 1 2-2h5v16" />
+						<path d="M11 10h7a2 2 0 0 1 2 2v8" />
+						<path d="M3 20h18" />
+						<path d="M8 8h.01" />
+					</svg>
+					<span>GitHub</span>
+				</a>
+			</div>
+		</header>
+
+		<main class="stage">
+			<div class="stage-head">
+				<p class="eyebrow">LIVE PRODUCT DEMO <span>/</span> FIVE ACTS</p>
+				<h1 class="hero-title">Subdomains, on demand.</h1>
+				<p class="hero-sub">Watch the <span class="mono">Subdomain Finder</span> MCP server answer a live lookup inside a conversation.</p>
+			</div>
+
+			<div class="stage-frame" id="frame">
+				<!-- Decorative cinematic stage. A text description for assistive tech follows below. -->
+				<div class="scene" id="scene" aria-hidden="true">
+					<div class="scene-grid"></div>
+
+					<div class="win-chrome">
+						<span class="win-dot"></span>
+						<span class="win-dot"></span>
+						<span class="win-dot"></span>
+						<span class="win-title">AI Agent</span>
+					</div>
+
+						<!-- Conversation thread -->
+					<div class="thread">
+						<div class="msg user" id="msgUser2">find subdomain of grafana.com</div>
+
+						<div class="msg ai thinking" id="thinking">
+							<span></span><span></span><span></span>
+						</div>
+
+						<div class="msg ai" id="msgAi2">
+							<div class="msg-label">ASSISTANT</div>
+							I can't retrieve a verified, complete subdomain list directly. Public certificate-transparency indexes and subdomain directories can help, but their results are incomplete.
+						</div>
+
+						<div class="msg user user-tool" id="msgUser5">
+							<span class="badge-inline">
+								<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+									<path d="M9 3v5" /><path d="M15 3v5" /><path d="M6 8h12v3a6 6 0 0 1-12 0V8Z" /><path d="M12 17v4" />
+								</svg>
+								Subdomain Finder
+							</span>
+							<span class="user-text">find subdomain of grafana.com</span>
+						</div>
+					</div>
+
+					<!-- Tool execution result -->
+					<div class="result" id="result">
+						<div class="exec-status" id="execStatus">
+							<span class="mini-spinner"></span>
+							<span>Worked for a few seconds</span>
+						</div>
+
+						<div class="result-head" id="resultHead">
+							<div class="rh-left">
+								<div class="rh-domain">grafana.com</div>
+								<div class="rh-sub">Subdomain Finder <span>&middot;</span> Publicly indexed results</div>
+							</div>
+							<div class="rh-badge">
+								<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 13 4 4L19 7" /></svg>
+								Lookup successful
+							</div>
+						</div>
+
+						<div class="metrics" id="metrics">
+							<div class="metric"><div class="metric-num" id="mReturned">0</div><div class="metric-label">Returned</div></div>
+							<div class="metric"><div class="metric-num" id="mTotal">0</div><div class="metric-label">Total seen</div></div>
+							<div class="metric"><div class="metric-num" id="mTrunc">&nbsp;</div><div class="metric-label">Truncated</div></div>
+						</div>
+
+						<div class="discoveries" id="discoveries">
+							<div class="disc-title">
+								<svg class="ico disc-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
+								Interesting discoveries
+							</div>
+							<div class="disc-grid">
+								<div class="disc-card">
+									<div class="dc-title">Infrastructure &amp; APIs</div>
+									<ul>
+										<li>api.community.grafana.com</li>
+										<li>mcp.grafana.com</li>
+										<li>mcp-prod-ap-south-0.grafana.com</li>
+										<li>proserv.api.grafana.com</li>
+										<li>dns.grafana.com</li>
+									</ul>
+								</div>
+								<div class="disc-card">
+									<div class="dc-title">Development &amp; staging</div>
+									<ul>
+										<li>apt-stg.grafana.com</li>
+										<li>dl-stg.grafana.com</li>
+										<li>packages-staging.grafana.com</li>
+										<li>packages-stg.grafana.com</li>
+										<li>mobile-preview.grafana.com</li>
+									</ul>
+								</div>
+								<div class="disc-card">
+									<div class="dc-title">Community &amp; documentation</div>
+									<ul>
+										<li>community.grafana.com</li>
+										<li>developers.grafana.com</li>
+										<li>docs.grafana.com</li>
+										<li>forum.grafana.com</li>
+										<li>play.grafana.com</li>
+									</ul>
+								</div>
+								<div class="disc-card">
+									<div class="dc-title">Unusual / interesting</div>
+									<ul>
+										<li>quickpizza.grafana.com</li>
+										<li>razorpay.grafana.com</li>
+										<li>finance-assistant.grafana.com</li>
+										<li>1password-scim.grafana.com</li>
+										<li>assistant-github-install.grafana.com</li>
+									</ul>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- Act 3 callout -->
+					<div class="toast" id="toast" role="status">
+						<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+							<path d="M12 3l1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6L12 3Z" />
+							<path d="M19 15l.6 1.6L21 17.2l-1.4.6L19 19.4l-.6-1.6-1.4-.6 1.4-.6L19 15Z" />
+						</svg>
+						<span>Try <strong>"Subdomain Finder"</strong> MCP to query live subdomains directly</span>
+					</div>
+
+					<!-- Act 3 tools popover -->
+					<div class="tools-pop" id="toolsPop">
+						<div class="tp-head">TOOLS</div>
+						<div class="tp-row">
+							<div class="tp-icon">
+								<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+									<path d="M9 3v5" /><path d="M15 3v5" /><path d="M6 8h12v3a6 6 0 0 1-12 0V8Z" /><path d="M12 17v4" />
+								</svg>
+							</div>
+							<div class="tp-meta">
+								<div class="tp-name">Subdomain Finder</div>
+								<div class="tp-endpoint">server.adityahq.me/mcp</div>
+							</div>
+							<button class="toggle" id="toolToggle" type="button" role="switch" aria-checked="false" aria-label="Enable the Subdomain Finder tool"><span class="knob"></span></button>
+							<svg class="ico tp-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
+						</div>
+					</div>
+
+					<!-- Composer pill -->
+					<div class="composer" id="composer">
+						<button class="plus-btn" id="plusBtn" type="button" aria-label="Open tools">
+							<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+						</button>
+						<div class="chip-slot"><span class="chip" id="chip">
+							<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3v5" /><path d="M15 3v5" /><path d="M6 8h12v3a6 6 0 0 1-12 0V8Z" /><path d="M12 17v4" /></svg>
+							Subdomain Finder
+						</span></div>
+						<div class="input-wrap" id="inputWrap">
+							<span class="input-text" id="inputText"></span>
+							<span class="placeholder">Ask anything&hellip;</span>
+						</div>
+						<button class="send-btn" id="sendBtn" type="button" aria-label="Send message">
+							<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+						</button>
+					</div>
+
+					<!-- Custom pointer -->
+					<div class="cursor" id="cursor">
+						<div class="cursor-art" id="cursorArt">
+							<svg class="cur-pointer" width="24" height="30" viewBox="0 0 24 30" fill="none" aria-hidden="true">
+								<path d="M3 2.2 L3 23.2 L8.3 18.3 L11.6 26.2 L14.6 24.9 L11.3 17 L19 17 Z" fill="currentColor" stroke="#09090B" stroke-width="1.6" stroke-linejoin="round" />
+							</svg>
+							<svg class="cur-ibeam" width="24" height="30" viewBox="0 0 24 30" fill="none" aria-hidden="true">
+								<path d="M11 3 L13 3 L13 12 L16 12 L16 14 L13 14 L13 25 L11 25 L11 14 L8 14 L8 12 L11 12 Z" fill="currentColor" stroke="#09090B" stroke-width="1" stroke-linejoin="round" />
+							</svg>
+						</div>
+					</div>
+					<div class="ripples" id="ripples"></div>
+				</div>
+			</div>
+
+			<p class="sr-only">An animated product demonstration in five acts. A user asks an assistant to find the subdomains of a domain. The assistant explains that it cannot retrieve a verified, complete list on its own. The user then enables the Subdomain Finder tool, asks again, and receives a successful lookup showing one hundred returned subdomains, one hundred and twenty-six seen, and a truncated result set with examples across infrastructure, staging, community, and other groups.</p>
+			<div class="sr-only" id="liveStatus" aria-live="polite" aria-atomic="true"></div>
+		</main>
+
+		<section class="clients-section" aria-labelledby="clients-heading">
+			<p class="clients-eyebrow">CONNECT</p>
+			<h2 class="clients-heading" id="clients-heading">Connect from your AI agent</h2>
+			<p class="clients-note">Official setup guides. Availability depends on your plan and client version.</p>
+
+			<div class="endpoint-row">
+				<code class="connect-endpoint" id="connectEndpoint">https://server.adityahq.me/mcp</code>
+				<button class="connect-copy" id="connectCopyBtn" type="button" aria-label="Copy the MCP endpoint URL to the clipboard">
+					<svg class="connect-copy-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+						<rect x="9" y="9" width="11" height="11" rx="2"></rect>
+						<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+					</svg>
+					<span class="copy-label">Copy</span>
+				</button>
+			</div>
+
+			<div class="client-grid" id="clientGrid" aria-label="AI clients"></div>
+		</section>
+
+		<dialog class="connect-dialog" id="connectDialog" aria-labelledby="connectDialogTitle">
+			<div class="dialog-inner">
+				<button class="dialog-close" id="connectDialogClose" type="button" aria-label="Close setup guide">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+				</button>
+				<div class="dialog-head">
+					<span class="dialog-logo" id="connectDialogLogo" aria-hidden="true"></span>
+					<h2 class="dialog-title" id="connectDialogTitle"></h2>
+				</div>
+				<div class="dialog-body" id="connectDialogBody"></div>
+				<div class="dialog-actions" id="connectDialogActions"></div>
+			</div>
+		</dialog>
+
+		<noscript>
+			<div class="noscript">This demonstration uses JavaScript to play its animation. The MCP endpoint is <code>https://server.adityahq.me/mcp</code>.</div>
+		</noscript>
+
+		<script src="/app.js"></script>
+		<script src="/connect.js"></script>
 	</body>
 </html>

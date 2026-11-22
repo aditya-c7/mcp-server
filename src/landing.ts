@@ -4,7 +4,19 @@ const PERPLEXITY_PATH = 'M22.398 7.09h-2.31V.068l-7.51 6.354V.158h-1.156v6.196L4
 
 const OPENAI_PATH = 'M22.282 9.821a6 6 0 0 0-.516-4.91a6.05 6.05 0 0 0-6.51-2.9A6.065 6.065 0 0 0 4.981 4.18a6 6 0 0 0-3.998 2.9a6.05 6.05 0 0 0 .743 7.097a5.98 5.98 0 0 0 .51 4.911a6.05 6.05 0 0 0 6.515 2.9A6 6 0 0 0 13.26 24a6.06 6.06 0 0 0 5.772-4.206a6 6 0 0 0 3.997-2.9a6.06 6.06 0 0 0-.747-7.073M13.26 22.43a4.48 4.48 0 0 1-2.876-1.04l.141-.081l4.779-2.758a.8.8 0 0 0 .392-.681v-6.737l2.02 1.168a.07.07 0 0 1 .038.052v5.583a4.504 4.504 0 0 1-4.494 4.494M3.6 18.304a4.47 4.47 0 0 1-.535-3.014l.142.085l4.783 2.759a.77.77 0 0 0 .78 0l5.843-3.369v2.332a.08.08 0 0 1-.033.062L9.74 19.95a4.5 4.5 0 0 1-6.14-1.646M2.34 7.896a4.5 4.5 0 0 1 2.366-1.973V11.6a.77.77 0 0 0 .388.677l5.815 3.354l-2.02 1.168a.08.08 0 0 1-.071 0l-4.83-2.786A4.504 4.504 0 0 1 2.34 7.872zm16.597 3.855l-5.833-3.387L15.119 7.2a.08.08 0 0 1 .071 0l4.83 2.791a4.494 4.494 0 0 1-.676 8.105v-5.678a.79.79 0 0 0-.407-.667m2.01-3.023l-.141-.085l-4.774-2.782a.78.78 0 0 0-.785 0L9.409 9.23V6.897a.07.07 0 0 1 .028-.061l4.83-2.787a4.5 4.5 0 0 1 6.68 4.66zm-12.64 4.135l-2.02-1.164a.08.08 0 0 1-.038-.057V6.075a4.5 4.5 0 0 1 7.375-3.453l-.142.08L8.704 5.46a.8.8 0 0 0-.393.681zm1.097-2.365l2.602-1.5l2.607 1.5v2.999l-2.597 1.5l-2.607-1.5Z';
 
-const MCP_PATH = 'M13.85 0a4.16 4.16 0 0 0-2.95 1.217L1.456 10.66a.835.835 0 0 0 0 1.18a.835.835 0 0 0 1.18 0l9.442-9.442a2.49 2.49 0 0 1 3.541 0a2.49 2.49 0 0 1 0 3.541L8.59 12.97l-.1.1a.835.835 0 0 0 0 1.18a.835.835 0 0 0 1.18 0l.1-.098l7.03-7.034a2.49 2.49 0 0 1 3.542 0l.049.05a2.49 2.49 0 0 1 0 3.54l-8.54 8.54a1.96 1.96 0 0 0 0 2.755l1.753 1.753a.835.835 0 0 0 1.18 0a.835.835 0 0 0 0-1.18l-1.753-1.753a.266.266 0 0 1 0-.394l8.54-8.54a4.185 4.185 0 0 0 0-5.9l-.05-.05a4.16 4.16 0 0 0-2.95-1.218c-.2 0-.401.02-.6.048a4.17 4.17 0 0 0-1.17-3.552A4.16 4.16 0 0 0 13.85 0m0 3.333a.84.84 0 0 0-.59.245L6.275 10.56a4.186 4.186 0 0 0 0 5.902a4.186 4.186 0 0 0 5.902 0L19.16 9.48a.835.835 0 0 0 0-1.18a.835.835 0 0 0-1.18 0l-6.985 6.984a2.49 2.49 0 0 1-3.54 0a2.49 2.49 0 0 1 0-3.54l6.983-6.985a.835.835 0 0 0 0-1.18a.84.84 0 0 0-.59-.245';
+const GROK_PATH = 'M9.27 15.29l7.978-5.897c.391-.29.95-.177 1.137.272.98 2.369.542 5.215-1.41 7.169-1.951 1.954-4.667 2.382-7.149 1.406l-2.711 1.257c3.889 2.661 8.611 2.003 11.562-.953 2.341-2.344 3.066-5.539 2.388-8.42l.006.007c-.983-4.232.242-5.924 2.75-9.383.06-.082.12-.164.179-.248l-3.301 3.305v-.01L9.267 15.292M7.623 16.723c-2.792-2.67-2.31-6.801.071-9.184 1.761-1.763 4.647-2.483 7.166-1.425l2.705-1.25a7.808 7.808 0 00-1.829-1A8.975 8.975 0 005.984 5.83c-2.533 2.536-3.33 6.436-1.962 9.764 1.022 2.487-.653 4.246-2.34 6.022-.599.63-1.199 1.259-1.682 1.925l7.62-6.815';
+
+const CURSOR_PATH = 'M11.503.131 1.891 5.678a.84.84 0 0 0-.42.726v11.188c0 .3.162.575.42.724l9.609 5.55a1 1 0 0 0 .998 0l9.61-5.55a.84.84 0 0 0 .42-.724V6.404a.84.84 0 0 0-.42-.726L12.497.131a1.01 1.01 0 0 0-.996 0M2.657 6.338h18.55c.263 0 .43.287.297.515L12.23 22.918c-.062.107-.229.064-.229-.06V12.335a.59.59 0 0 0-.295-.51l-9.11-5.257c-.109-.063-.064-.23.061-.23';
+
+const VSCODE_PATH = 'M23.15 2.587L18.21.21a1.494 1.494 0 0 0-1.705.29l-9.46 8.63-4.12-3.128a.999.999 0 0 0-1.276.057L.327 7.261A1 1 0 0 0 .326 8.74L3.899 12 .326 15.26a1 1 0 0 0 .001 1.479L1.65 17.94a.999.999 0 0 0 1.276.057l4.12-3.128 9.46 8.63a1.492 1.492 0 0 0 1.704.29l4.942-2.377A1.5 1.5 0 0 0 24 20.06V3.939a1.5 1.5 0 0 0-.85-1.352zm-5.146 14.861L10.826 12l7.178-5.448v10.896z';
+
+const WINDSURF_PATH = 'M23.55 5.067c-1.2038-.002-2.1806.973-2.1806 2.1765v4.8676c0 .972-.8035 1.7594-1.7597 1.7594-.568 0-1.1352-.286-1.4718-.7659l-4.9713-7.1003c-.4125-.5896-1.0837-.941-1.8103-.941-1.1334 0-2.1533.9635-2.1533 2.153v4.8957c0 .972-.7969 1.7594-1.7596 1.7594-.57 0-1.1363-.286-1.4728-.7658L.4076 5.1598C.2822 4.9798 0 5.0688 0 5.2882v4.2452c0 .2147.0656.4228.1884.599l5.4748 7.8183c.3234.462.8006.8052 1.3509.9298 1.3771.313 2.6446-.747 2.6446-2.0977v-4.893c0-.972.7875-1.7593 1.7596-1.7593h.003a1.798 1.798 0 0 1 1.4718.7658l4.9723 7.0994c.4135.5905 1.05.941 1.8093.941 1.1587 0 2.1515-.9645 2.1515-2.153v-4.8948c0-.972.7875-1.7594 1.7596-1.7594h.194a.22.22 0 0 0 .2204-.2202v-4.622a.22.22 0 0 0-.2203-.2203Z';
+
+const COPILOT_PATH = 'M23.922 16.997C23.061 18.492 18.063 22.02 12 22.02 5.937 22.02.939 18.492.078 16.997A.641.641 0 0 1 0 16.741v-2.869a.883.883 0 0 1 .053-.22c.372-.935 1.347-2.292 2.605-2.656.167-.429.414-1.055.644-1.517a10.098 10.098 0 0 1-.052-1.086c0-1.331.282-2.499 1.132-3.368.397-.406.89-.717 1.474-.952C7.255 2.937 9.248 1.98 11.978 1.98c2.731 0 4.767.957 6.166 2.093.584.235 1.077.546 1.474.952.85.869 1.132 2.037 1.132 3.368 0 .368-.014.733-.052 1.086.23.462.477 1.088.644 1.517 1.258.364 2.233 1.721 2.605 2.656a.841.841 0 0 1 .053.22v2.869a.641.641 0 0 1-.078.256Zm-11.75-5.992h-.344a4.359 4.359 0 0 1-.355.508c-.77.947-1.918 1.492-3.508 1.492-1.725 0-2.989-.359-3.782-1.259a2.137 2.137 0 0 1-.085-.104L4 11.746v6.585c1.435.779 4.514 2.179 8 2.179 3.486 0 6.565-1.4 8-2.179v-6.585l-.098-.104s-.033.045-.085.104c-.793.9-2.057 1.259-3.782 1.259-1.59 0-2.738-.545-3.508-1.492a4.359 4.359 0 0 1-.355-.508Zm2.328 3.25c.549 0 1 .451 1 1v2c0 .549-.451 1-1 1-.549 0-1-.451-1-1v-2c0-.549.451-1 1-1Zm-5 0c.549 0 1 .451 1 1v2c0 .549-.451 1-1 1-.549 0-1-.451-1-1v-2c0-.549.451-1 1-1Zm3.313-6.185c.136 1.057.403 1.913.878 2.497.442.544 1.134.938 2.344.938 1.573 0 2.292-.337 2.657-.751.384-.435.558-1.15.558-2.361 0-1.14-.243-1.847-.705-2.319-.477-.488-1.319-.862-2.824-1.025-1.487-.161-2.192.138-2.533.529-.269.307-.437.808-.438 1.578v.021c0 .265.021.562.063.893Zm-1.626 0c.042-.331.063-.628.063-.894v-.02c-.001-.77-.169-1.271-.438-1.578-.341-.391-1.046-.69-2.533-.529-1.505.163-2.347.537-2.824 1.025-.462.472-.705 1.179-.705 2.319 0 1.211.175 1.926.558 2.361.365.414 1.084.751 2.657.751 1.21 0 1.902-.394 2.344-.938.475-.584.742-1.44.878-2.497Z';
+
+const CLAUDECODE_PATH = 'M21 10.5h3v3h-3v3h-1.5v3H18v-3h-1.5v3H15v-3H9v3H7.5v-3H6v3H4.5v-3H3v-3H0v-3h3v-6h18Zm-15 0h1.5v-3H6Zm10.5 0H18v-3h-1.5z';
+
+const GEMINI_PATH = 'M11.04 19.32Q12 21.51 12 24q0-2.49.93-4.68.96-2.19 2.58-3.81t3.81-2.55Q21.51 12 24 12q-2.49 0-4.68-.93a12.3 12.3 0 0 1-3.81-2.58 12.3 12.3 0 0 1-2.58-3.81Q12 2.49 12 0q0 2.49-.96 4.68-.93 2.19-2.55 3.81a12.3 12.3 0 0 1-3.81 2.58Q2.49 12 0 12q2.49 0 4.68.96 2.19.93 3.81 2.55t2.55 3.81';
 
 function logo(path: string, className = ''): string {
 	return '<svg class="logo ' + className + '" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="' + path + '"/></svg>';
@@ -39,7 +51,7 @@ export const LANDING_HTML = `<!doctype html>
   * { box-sizing:border-box; }
   html { font:400 16px/1.5 var(--font); }
   body { margin:0; background:var(--bg); color:var(--text); }
-  main { max-width:42rem; margin:0 auto; padding:var(--s12) var(--s4) 64px; }
+  main { max-width:48rem; margin:0 auto; padding:var(--s12) var(--s4) 64px; }
   h1 { font-size:1.75rem; line-height:1.25; font-weight:600; margin:var(--s3) 0 var(--s2); }
   h2 { font-size:1.125rem; line-height:1.35; font-weight:600; margin:0 0 var(--s4); }
   p { margin:0 0 var(--s4); }
@@ -59,17 +71,17 @@ export const LANDING_HTML = `<!doctype html>
   a { color:var(--accent); }
   :where(a,button,summary):focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
   .note { font-size:.8125rem; color:var(--muted); margin:var(--s3) 0 0; }
-  .clients { list-style:none; margin:0; padding:0; display:grid; gap:var(--s2); }
-  .clients details { border:1px solid var(--border); border-radius:var(--r); background:var(--surface); }
-  .clients summary { display:flex; align-items:center; gap:var(--s4); padding:var(--s3) var(--s4); cursor:pointer; min-height:44px; list-style:none; }
+  .clients { list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(auto-fit,minmax(108px,1fr)); gap:var(--s2); align-items:start; }
+  .clients details { border:1px solid var(--border); border-radius:var(--r); background:var(--surface); min-width:0; aspect-ratio:1 / 1; display:flex; flex-direction:column; }
+  .clients details[open] { aspect-ratio:auto; }
+  .clients summary { position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; flex:1; padding:var(--s2); cursor:pointer; list-style:none; text-align:center; }
   .clients summary::-webkit-details-marker { display:none; }
   @media (hover:hover) { .clients summary:hover { background:var(--surface-hover); } }
-  .clients summary:after { content:"+"; margin-left:auto; color:var(--muted); font-size:1.1rem; }
-  .clients details[open] summary:after { content:"\\2212"; }
-  .logo { width:24px; height:24px; flex:none; }
-  .client-name { font-weight:600; }
-  .client-meta { color:var(--muted); font-size:.8125rem; }
-  .steps { margin:0; padding:var(--s4) var(--s4) var(--s6) 56px; color:var(--muted); font-size:.875rem; }
+  .logo { width:22px; height:22px; flex:none; }
+  .logo-vscode { color:#007ACC; }
+  .client-name { font-weight:600; font-size:.8125rem; }
+  .client-meta { color:var(--muted); font-size:.625rem; }
+  .steps { margin:0; padding:0 var(--s3) var(--s4); color:var(--muted); font-size:.8125rem; border-top:1px solid var(--border); }
   .steps li { margin-bottom:var(--s2); }
   footer { color:var(--muted); font-size:.8125rem; border-top:1px solid var(--border); padding-top:var(--s4); margin-top:var(--s12); }
   .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
@@ -143,13 +155,72 @@ export const LANDING_HTML = `<!doctype html>
         </details>
       </li>
       <li>
-        <details open>
-          <summary>${logo(MCP_PATH)}<span class="client-name">MCP Inspector</span><span class="client-meta">Developer tool</span></summary>
+        <details>
+          <summary>${logo(CLAUDECODE_PATH)}<span class="client-name">Claude Code</span><span class="client-meta">CLI</span></summary>
           <ol class="steps">
-            <li>Run the command above in a terminal.</li>
-            <li>Open the printed local URL with its access token.</li>
-            <li>Set transport to Streamable HTTP and the server URL to the endpoint above, then Connect.</li>
-            <li>List tools; only <code>list_subdomains</code> should appear.</li>
+            <li>Run <code>claude mcp add --transport http adityahq https://server.adityahq.me/mcp</code>.</li>
+            <li>Add <code>--scope user</code> to share it across projects.</li>
+            <li>Verify with <code>claude mcp list</code>, then list tools in a session.</li>
+          </ol>
+        </details>
+      </li>
+      <li>
+        <details>
+          <summary>${logo(CURSOR_PATH)}<span class="client-name">Cursor</span><span class="client-meta">Editor</span></summary>
+          <ol class="steps">
+            <li>Open Customize → MCPs → Add to Cursor, or edit <code>~/.cursor/mcp.json</code>.</li>
+            <li>Add <code>{ "mcpServers": { "adityahq": { "url": "https://server.adityahq.me/mcp" } } }</code>.</li>
+            <li>Restart Cursor and manage the server from Customize → MCPs.</li>
+          </ol>
+        </details>
+      </li>
+      <li>
+        <details>
+          <summary>${logo(VSCODE_PATH, 'logo-vscode')}<span class="client-name">VS Code</span><span class="client-meta">Editor</span></summary>
+          <ol class="steps">
+            <li>Run Chat: Open Customizations → MCP Servers → Add Server → HTTP.</li>
+            <li>Enter the endpoint URL and a unique ID, then save to Copilot Global.</li>
+            <li>Or add <code>{ "servers": { "adityahq": { "type": "http", "url": "https://server.adityahq.me/mcp" } } }</code> to <code>.vscode/mcp.json</code>.</li>
+          </ol>
+        </details>
+      </li>
+      <li>
+        <details>
+          <summary>${logo(WINDSURF_PATH)}<span class="client-name">Windsurf</span><span class="client-meta">Editor</span></summary>
+          <ol class="steps">
+            <li>Open Settings → Tools → Windsurf Settings → Add Server.</li>
+            <li>Add <code>{ "mcpServers": { "adityahq": { "url": "https://server.adityahq.me/mcp" } } }</code> to your MCP config.</li>
+            <li>Refresh the server list to expose its tools.</li>
+          </ol>
+        </details>
+      </li>
+      <li>
+        <details>
+          <summary>${logo(COPILOT_PATH)}<span class="client-name">GitHub Copilot</span><span class="client-meta">VS Code</span></summary>
+          <ol class="steps">
+            <li>With Copilot selected, open Chat: Open Customizations → MCP Servers → Add Server → HTTP.</li>
+            <li>Enter the endpoint URL and save to Copilot Global.</li>
+            <li>Verify with a tool call. An eligible Copilot session and org policy may be required.</li>
+          </ol>
+        </details>
+      </li>
+      <li>
+        <details>
+          <summary>${logo(GROK_PATH)}<span class="client-name">Grok</span><span class="client-meta">Web connector</span></summary>
+          <ol class="steps">
+            <li>Open <code>grok.com/connectors</code> → New Connector → Custom.</li>
+            <li>Paste the endpoint URL and save; tools are discovered automatically.</li>
+            <li>Business and Enterprise workspaces need an admin to provision connectors first.</li>
+          </ol>
+        </details>
+      </li>
+      <li>
+        <details>
+          <summary>${logo(GEMINI_PATH)}<span class="client-name">Gemini CLI</span><span class="client-meta">CLI</span></summary>
+          <ol class="steps">
+            <li>Run <code>gemini mcp add -s user --transport http adityahq https://server.adityahq.me/mcp</code>.</li>
+            <li>Or set <code>httpUrl</code> in <code>~/.gemini/settings.json</code> — <code>url</code> means SSE.</li>
+            <li>Verify with <code>gemini mcp list</code>. Availability depends on your Google plan.</li>
           </ol>
         </details>
       </li>
