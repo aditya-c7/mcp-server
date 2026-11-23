@@ -222,7 +222,8 @@
 			: function (id) { window.clearTimeout(id); };
 
 		function tick(now) {
-			var dt = now - clock.last;
+			/* A first rAF timestamp can precede the time at which it was requested. */
+			var dt = Math.max(0, now - clock.last);
 			clock.last = now;
 			/* Clamp so a backgrounded tab cannot fast-forward to the end state. */
 			if (paused || autoPaused) dt = 0;
@@ -289,7 +290,9 @@
 		var SCENE_H = 700;
 		var cam = { tx: 0, ty: 0, s: 1 };
 		var camId = 0;
-		var easeDolly = cubicBezier(0.65, 0, 0.25, 1);
+		var cameraFlight = Promise.resolve(true);
+		/* Quintic easing has zero velocity AND acceleration at both ends. */
+		function easeDolly(t) { return t * t * t * (t * (t * 6 - 15) + 10); }
 
 		function applyCam() {
 			if (!camera) return;
@@ -297,9 +300,7 @@
 		}
 
 		function camTarget(fx, fy, s) {
-			/* Smaller zooms on narrow screens so nothing gets cramped. */
-			var w = frameEl ? frameEl.clientWidth : SCENE_W;
-			if (w < 640) s = 1 + (s - 1) * 0.6;
+			/* Keep the close-ups equally legible on phones; do not dilute the zoom. */
 			var tx = SCENE_W / 2 - fx * s;
 			var ty = SCENE_H / 2 - fy * s;
 			tx = Math.min(0, Math.max(SCENE_W - SCENE_W * s, tx));
@@ -316,20 +317,32 @@
 
 		function camHome() { camSet(SCENE_W / 2, SCENE_H / 2, 1); }
 
-		/* Fire-and-forget: the flow never waits on the camera. */
+		/* One shared clock; finish a shot before starting the next camera move. */
 		function camTo(fx, fy, s, duration, myToken) {
-			if (RM) { camHome(); return; }
+			if (RM) { camHome(); return Promise.resolve(true); }
 			var id = ++camId;
 			var from = { tx: cam.tx, ty: cam.ty, s: cam.s };
 			var to = camTarget(fx, fy, s);
-			schedule(duration, function (t) {
+			/* Interpolate edge anchors, not raw translation: every frame stays covered. */
+			function anchor(offset, size, scale, fallback) {
+				return scale > 1.00001 ? -offset / (size * (scale - 1)) : fallback;
+			}
+			var toX = anchor(to.tx, SCENE_W, to.s, 0.5);
+			var toY = anchor(to.ty, SCENE_H, to.s, 0.5);
+			var fromX = anchor(from.tx, SCENE_W, from.s, toX);
+			var fromY = anchor(from.ty, SCENE_H, from.s, toY);
+			/* Pull back along the same optical axis instead of drifting to the centre. */
+			if (to.s === 1) { toX = fromX; toY = fromY; }
+			cameraFlight = schedule(duration, function (t) {
 				if (id !== camId) return;
 				var k = easeDolly(t);
-				cam.tx = from.tx + (to.tx - from.tx) * k;
-				cam.ty = from.ty + (to.ty - from.ty) * k;
-				cam.s = from.s + (to.s - from.s) * k;
+				/* Logarithmic magnification gives a constant perceived dolly speed. */
+				cam.s = Math.exp(Math.log(from.s) + Math.log(to.s / from.s) * k);
+				cam.tx = -SCENE_W * (cam.s - 1) * (fromX + (toX - fromX) * k);
+				cam.ty = -SCENE_H * (cam.s - 1) * (fromY + (toY - fromY) * k);
 				applyCam();
 			}, myToken);
+			return cameraFlight;
 		}
 
 		function updateProgress() {
@@ -709,7 +722,7 @@
 			void (composer && composer.offsetWidth);
 			addClass(composer, "intro");
 			camSet(560, 350, 1);
-			camTo(560, 370, 1.12, 2600, t);
+			camTo(560, 350, 1.65, 2400, t);
 			if (!await sleep(700, t)) return false;
 
 			if (!await glideTo(560, 350, 950, t)) return false;
@@ -724,11 +737,13 @@
 			setCursorMode("pointer");
 			removeClass(inputWrap, "typing");
 			if (!await sleep(260, t)) return false;
-			camTo(560, 330, 1.0, 1100, t);
+			if (!await cameraFlight) return false;
+			camTo(560, 350, 1.0, 1800, t);
 
 			if (!await glideTo(840, 350, 560, t)) return false;
 			if (!await pressButton(sendBtn, 840, 350, t)) return false;
-			return await sleep(420, t);
+			if (!await cameraFlight) return false;
+			return await sleep(300, t);
 		}
 
 		async function run2(t) {
@@ -740,15 +755,16 @@
 				addClass(msgAi2, "show");
 				return true;
 			}
-			camTo(520, 250, 1.06, 1600, t);
+			camTo(340, 235, 1.55, 2000, t);
 			addClass(thinking, "show");
 			if (!await sleep(900, t)) return false;
 			removeClass(thinking, "show");
 			streamReset();
 			addClass(msgAi2, "show");
 			if (!await streamIn(t)) return false;
-			camTo(560, 350, 1.0, 1200, t);
-			return await sleep(1100, t);
+			if (!await cameraFlight) return false;
+			if (!await sleep(650, t)) return false;
+			return await camTo(560, 350, 1.0, 2000, t);
 		}
 
 		async function run3(t) {
@@ -763,30 +779,32 @@
 			if (!await sleep(900, t)) return false;
 
 			addClass(toast, "show");
-			camTo(520, 560, 1.14, 1300, t);
+			camTo(520, 570, 1.5, 1800, t);
 			if (!await sleep(700, t)) return false;
 
 			if (!await glideTo(281, 655, 560, t)) return false;
 			if (!await pressButton(plusBtn, 281, 655, t)) return false;
+			if (!await cameraFlight) return false;
 			addClass(toolsPop, "show");
 			/* Key zoom: close-up on the switch, everything else falls out of focus. */
-			camTo(470, 455, 1.32, 1200, t);
+			camTo(432, 455, 2.5, 2200, t);
 			addClass(scene, "dof");
-			if (!await sleep(650, t)) return false;
+			/* Land the close-up before clicking, then hold the enabled state. */
+			if (!await cameraFlight) return false;
+			if (!await sleep(250, t)) return false;
 
 			if (!await glideTo(545, 462, 520, t)) return false;
 			if (!await sleep(120, t)) return false;
 			if (!await clickAt(545, 462, t)) return false;
 			addClass(toolToggle, "on");
 			setAttr(toolToggle, "aria-checked", "true");
-			if (!await sleep(700, t)) return false;
+			if (!await sleep(1100, t)) return false;
 
 			removeClass(toolsPop, "show");
 			removeClass(scene, "dof");
 			addClass(chip, "on");
 			removeClass(toast, "show");
-			camTo(560, 520, 1.06, 1300, t);
-			return await sleep(700, t);
+			return await camTo(560, 520, 1.0, 2400, t);
 		}
 
 		async function run4(t) {
@@ -796,7 +814,7 @@
 				addClass(msgUser5, "show");
 				return true;
 			}
-			camTo(560, 600, 1.1, 1500, t);
+			camTo(560, 600, 1.65, 2200, t);
 			if (!await sleep(420, t)) return false;
 
 			if (!await glideTo(560, 654, 700, t)) return false;
@@ -814,8 +832,8 @@
 
 			if (!await glideTo(840, 654, 520, t)) return false;
 			if (!await pressButton(sendBtn, 840, 654, t)) return false;
-			camTo(560, 300, 1.04, 1400, t);
-			return await sleep(380, t);
+			if (!await cameraFlight) return false;
+			return await camTo(560, 350, 1.0, 2200, t);
 		}
 
 		async function run5(t) {
@@ -841,8 +859,8 @@
 			removeClass(execStatus, "show");
 			addClass(resultHead, "show");
 			/* Second zoom: lean in on the numbers as they roll. */
-			camTo(560, 250, 1.2, 1300, t);
-			if (!await sleep(360, t)) return false;
+			camTo(392, 260, 1.6, 2200, t);
+			if (!await sleep(700, t)) return false;
 
 			addClass(metrics, "show");
 			addClass(metrics, "shimmer");
@@ -851,11 +869,12 @@
 			if (!await p1) return false;
 			if (!await p2) return false;
 			setText(mTrunc, "Yes");
+			if (!await cameraFlight) return false;
 			if (!await sleep(140, t)) return false;
 
-			if (!await sleep(500, t)) return false;
+			if (!await sleep(1000, t)) return false;
 			/* Slow pull-out to the master shot while the groups cascade in. */
-			camTo(560, 350, 1.0, 2600, t);
+			camTo(560, 350, 1.0, 3200, t);
 			for (var i = 0; i < discCards.length; i++) {
 				addClass(discCards[i], "show");
 				if (!await sleep(170, t)) return false;
