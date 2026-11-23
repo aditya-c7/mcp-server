@@ -14,5 +14,7 @@
 	},
 	"assets": {
 		"directory": "./public"
-	}
+	},
+	// Required by Workers Builds preview deploys (wrangler preview).
+	"previews": {}
 }

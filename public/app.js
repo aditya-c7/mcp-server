@@ -135,6 +135,11 @@
 		var mTrunc = $("mTrunc");
 		var actTag = $("actTag");
 		var liveStatus = $("liveStatus");
+		var camera = $("camera");
+		var aiStream = $("aiStream");
+		var execText = $("execText");
+		var speedBtn = $("speedBtn");
+		var frameEl = $("frame");
 
 		/* Optional controls — may be removed from the markup entirely. */
 		var playBtn = $("playBtn");
@@ -161,6 +166,10 @@
 		var token = 0;
 		var currentAct = 1;
 		var copyTimer = null;
+		var speed = 1;
+		var autoPaused = false;
+		var actElapsed = 0;
+		var ACT_LEN = { 1: 6200, 2: 4600, 3: 5600, 4: 5200, 5: 9800 };
 
 		/* ---------- Exact camera easing: cubic-bezier(0.22, 1, 0.36, 1) ---------- */
 
@@ -183,6 +192,7 @@
 		}
 
 		var easeCamera = cubicBezier(0.22, 1, 0.36, 1);
+		var easeHand = cubicBezier(0.5, 0, 0.15, 1);
 
 		function nowMs() {
 			return typeof performance !== "undefined" && performance.now
@@ -199,17 +209,27 @@
 			running = false;
 			var pending = clock.tasks.slice();
 			clock.tasks.length = 0;
-			if (clock.raf) window.clearTimeout(clock.raf);
+			if (clock.raf) cancelFrame(clock.raf);
 			clock.raf = 0;
 			pending.forEach(function (task) { task.resolve(false); });
 		}
+
+		var reqFrame = typeof window.requestAnimationFrame === "function"
+			? function (fn) { return window.requestAnimationFrame(fn); }
+			: function (fn) { return window.setTimeout(function () { fn(nowMs()); }, 16); };
+		var cancelFrame = typeof window.cancelAnimationFrame === "function"
+			? function (id) { window.cancelAnimationFrame(id); }
+			: function (id) { window.clearTimeout(id); };
 
 		function tick(now) {
 			var dt = now - clock.last;
 			clock.last = now;
 			/* Clamp so a backgrounded tab cannot fast-forward to the end state. */
-			if (paused) dt = 0;
+			if (paused || autoPaused) dt = 0;
 			else if (dt > 50) dt = 50;
+			dt *= speed;
+			actElapsed += dt;
+			updateProgress();
 			for (var i = clock.tasks.length - 1; i >= 0; i--) {
 				var task = clock.tasks[i];
 				if (task.token !== token) {
@@ -230,7 +250,7 @@
 				}
 			}
 			if (clock.tasks.length) {
-				clock.raf = window.setTimeout(function () { tick(nowMs()); }, 16);
+				clock.raf = reqFrame(tick);
 			} else {
 				clock.raf = 0;
 			}
@@ -251,7 +271,7 @@
 				});
 				if (!clock.raf) {
 					clock.last = nowMs();
-					clock.raf = window.setTimeout(function () { tick(nowMs()); }, 16);
+					clock.raf = reqFrame(tick);
 				}
 			});
 		}
@@ -262,6 +282,59 @@
 
 		function sleep(ms, myToken) {
 			return wait(ms, myToken);
+		}
+
+		/* ---------- Virtual camera: translate + scale, eased per shot ---------- */
+
+		var SCENE_H = 700;
+		var cam = { tx: 0, ty: 0, s: 1 };
+		var camId = 0;
+		var easeDolly = cubicBezier(0.65, 0, 0.25, 1);
+
+		function applyCam() {
+			if (!camera) return;
+			camera.style.transform = "translate3d(" + cam.tx.toFixed(2) + "px," + cam.ty.toFixed(2) + "px,0) scale(" + cam.s.toFixed(4) + ")";
+		}
+
+		function camTarget(fx, fy, s) {
+			/* Smaller zooms on narrow screens so nothing gets cramped. */
+			var w = frameEl ? frameEl.clientWidth : SCENE_W;
+			if (w < 640) s = 1 + (s - 1) * 0.6;
+			var tx = SCENE_W / 2 - fx * s;
+			var ty = SCENE_H / 2 - fy * s;
+			tx = Math.min(0, Math.max(SCENE_W - SCENE_W * s, tx));
+			ty = Math.min(0, Math.max(SCENE_H - SCENE_H * s, ty));
+			return { tx: tx, ty: ty, s: s };
+		}
+
+		function camSet(fx, fy, s) {
+			++camId;
+			var t = camTarget(fx, fy, s);
+			cam.tx = t.tx; cam.ty = t.ty; cam.s = t.s;
+			applyCam();
+		}
+
+		function camHome() { camSet(SCENE_W / 2, SCENE_H / 2, 1); }
+
+		/* Fire-and-forget: the flow never waits on the camera. */
+		function camTo(fx, fy, s, duration, myToken) {
+			if (RM) { camHome(); return; }
+			var id = ++camId;
+			var from = { tx: cam.tx, ty: cam.ty, s: cam.s };
+			var to = camTarget(fx, fy, s);
+			schedule(duration, function (t) {
+				if (id !== camId) return;
+				var k = easeDolly(t);
+				cam.tx = from.tx + (to.tx - from.tx) * k;
+				cam.ty = from.ty + (to.ty - from.ty) * k;
+				cam.s = from.s + (to.s - from.s) * k;
+				applyCam();
+			}, myToken);
+		}
+
+		function updateProgress() {
+			var b = stepBtns[currentAct - 1];
+			if (b && b.style) b.style.setProperty("--p", String(Math.min(1, actElapsed / (ACT_LEN[currentAct] || 5000))));
 		}
 
 		/* ---------- Single pointer: continuous glide geometry, press and ripple ---------- */
@@ -281,7 +354,7 @@
 		function textEndPoint() {
 			var x = 0, y = 0;
 			if (!inputText || !scene) return { x: x, y: y };
-			var sr = scene.getBoundingClientRect();
+			var sr = (camera || scene).getBoundingClientRect();
 			var scale = sr.width && SCENE_W ? sr.width / SCENE_W : 1;
 			try {
 				var node = inputText.firstChild;
@@ -317,9 +390,17 @@
 			}
 			var fromX = pointer.x;
 			var fromY = pointer.y;
-			return schedule(duration, function (t) {
-				var k = easeCamera(t);
-				setCursor(fromX + (x - fromX) * k, fromY + (y - fromY) * k);
+			/* Human hands travel in arcs: a quadratic Bezier bowed off the straight line. */
+			var dx = x - fromX, dy = y - fromY;
+			var dist = Math.sqrt(dx * dx + dy * dy);
+			var bow = Math.min(90, dist * 0.16) * (dx >= 0 ? 1 : -1);
+			var cx = (fromX + x) / 2 + (dist ? -dy / dist : 0) * bow;
+			var cy = (fromY + y) / 2 + (dist ? dx / dist : 0) * bow;
+			var d = Math.max(duration, Math.min(1100, 260 + dist * 0.9));
+			return schedule(d, function (t) {
+				var k = easeHand(t);
+				var u = 1 - k;
+				setCursor(u * u * fromX + 2 * u * k * cx + k * k * x, u * u * fromY + 2 * u * k * cy + k * k * y);
 			}, myToken);
 		}
 
@@ -368,15 +449,77 @@
 			}
 		}
 
-		async function typeText(text, myToken) {
-			setText(inputText, "");
+		function keyDelay(ch, next) {
+			var d = 45 + Math.random() * 70;
+			if (ch === " ") d += 60 + Math.random() * 90;
+			if (next === "." ) d += 120;
+			return d;
+		}
+
+		async function typeChars(text, myToken) {
 			for (var i = 0; i < text.length; i++) {
 				if (myToken !== token) return false;
 				if (inputText) inputText.textContent += text.charAt(i);
 				if (cursor && cursor.classList.contains("text")) cursorToTextEnd();
 				if (RM) continue;
-				if (!await wait(35 + Math.random() * 50, myToken)) return false;
+				if (!await wait(keyDelay(text.charAt(i), text.charAt(i + 1)), myToken)) return false;
 			}
+			return true;
+		}
+
+		async function backspace(n, myToken) {
+			for (var i = 0; i < n; i++) {
+				if (inputText) inputText.textContent = inputText.textContent.slice(0, -1);
+				if (cursor && cursor.classList.contains("text")) cursorToTextEnd();
+				if (!await wait(70 + Math.random() * 30, myToken)) return false;
+			}
+			return true;
+		}
+
+		async function typeText(text, myToken, withTypo) {
+			setText(inputText, "");
+			if (withTypo && !RM) {
+				/* "subdomian" -> notice -> fix: a small, believable human slip. */
+				if (!await typeChars("find subdomian", myToken)) return false;
+				if (!await wait(260, myToken)) return false;
+				if (!await backspace(3, myToken)) return false;
+				if (!await wait(120, myToken)) return false;
+				return await typeChars(text.slice("find subdom".length), myToken);
+			}
+			return await typeChars(text, myToken);
+		}
+
+		/* ---------- Streaming assistant reply ---------- */
+
+		var streamWords = [];
+		(function prepStream() {
+			if (!aiStream) return;
+			var words = (aiStream.textContent || "").trim().split(/\s+/);
+			aiStream.textContent = "";
+			words.forEach(function (w, i) {
+				var span = document.createElement("span");
+				span.className = "w";
+				span.textContent = w;
+				aiStream.appendChild(span);
+				if (i < words.length - 1) aiStream.appendChild(document.createTextNode(" "));
+				streamWords.push(span);
+			});
+		})();
+
+		function streamReset() {
+			removeClass(aiStream, "done");
+			streamWords.forEach(function (w) { removeClass(w, "on"); });
+		}
+
+		function streamDone() { addClass(aiStream, "done"); }
+
+		async function streamIn(myToken) {
+			streamReset();
+			for (var i = 0; i < streamWords.length; i++) {
+				addClass(streamWords[i], "on");
+				if (!await wait(28 + Math.random() * 40, myToken)) return false;
+			}
+			streamDone();
 			return true;
 		}
 
@@ -412,12 +555,15 @@
 		function setAct(n) {
 			var act = clampAct(n);
 			currentAct = act;
+			actElapsed = 0;
 			if (actTag) {
 				actTag.innerHTML = String(act < 10 ? "0" + act : act) + " <span>/ 05</span>";
 			}
 			stepBtns.forEach(function (b) {
 				var active = readAct(b) === act;
 				toggleClass(b, "active", active);
+				toggleClass(b, "done", readAct(b) < act);
+				if (b.style) b.style.setProperty("--p", "0");
 				if (active) setAttr(b, "aria-current", "step");
 				else removeAttr(b, "aria-current");
 			});
@@ -474,6 +620,10 @@
 			removeClass(plusBtn, "press");
 			removeClass(sendBtn, "press");
 			clearRipples();
+			removeClass(scene, "dof");
+			streamReset();
+			setText(execText, "Worked for a few seconds");
+			camHome();
 			revealScene();
 			parkPointer();
 		}
@@ -491,6 +641,7 @@
 			removeClass(thinking, "show");
 			removeClass(msgAi2, "show");
 			removeClass(msgUser5, "show");
+			removeClass(scene, "dof");
 			clearResult();
 			revealScene();
 		}
@@ -506,6 +657,7 @@
 			removeClass(chip, "on");
 			removeClass(toolToggle, "on");
 			setAttr(toolToggle, "aria-checked", "false");
+			streamDone();
 			clearResult();
 			revealScene();
 		}
@@ -525,6 +677,7 @@
 			setAttr(toolToggle, "aria-checked", "true");
 			removeClass(toolsPop, "show");
 			removeClass(toast, "show");
+			removeClass(scene, "dof");
 			clearResult();
 			revealScene();
 		}
@@ -555,6 +708,8 @@
 			removeClass(composer, "intro");
 			void (composer && composer.offsetWidth);
 			addClass(composer, "intro");
+			camSet(560, 350, 1);
+			camTo(560, 370, 1.12, 2600, t);
 			if (!await sleep(700, t)) return false;
 
 			if (!await glideTo(560, 350, 950, t)) return false;
@@ -565,10 +720,11 @@
 			var textStart = textEndPoint();
 			if (!await glideTo(textStart.x, textStart.y, 220, t)) return false;
 			setCursorMode("text");
-			if (!await typeText(QUERY, t)) return false;
+			if (!await typeText(QUERY, t, true)) return false;
 			setCursorMode("pointer");
 			removeClass(inputWrap, "typing");
 			if (!await sleep(260, t)) return false;
+			camTo(560, 330, 1.0, 1100, t);
 
 			if (!await glideTo(840, 350, 560, t)) return false;
 			if (!await pressButton(sendBtn, 840, 350, t)) return false;
@@ -580,14 +736,19 @@
 			setup2();
 			if (RM) {
 				removeClass(thinking, "show");
+				streamDone();
 				addClass(msgAi2, "show");
 				return true;
 			}
+			camTo(520, 250, 1.06, 1600, t);
 			addClass(thinking, "show");
-			if (!await sleep(800, t)) return false;
+			if (!await sleep(900, t)) return false;
 			removeClass(thinking, "show");
+			streamReset();
 			addClass(msgAi2, "show");
-			return await sleep(1400, t);
+			if (!await streamIn(t)) return false;
+			camTo(560, 350, 1.0, 1200, t);
+			return await sleep(1100, t);
 		}
 
 		async function run3(t) {
@@ -599,26 +760,33 @@
 				setAttr(toolToggle, "aria-checked", "true");
 				return true;
 			}
-			if (!await sleep(1500, t)) return false;
+			if (!await sleep(900, t)) return false;
 
 			addClass(toast, "show");
-			if (!await sleep(500, t)) return false;
+			camTo(520, 560, 1.14, 1300, t);
+			if (!await sleep(700, t)) return false;
 
 			if (!await glideTo(281, 655, 560, t)) return false;
 			if (!await pressButton(plusBtn, 281, 655, t)) return false;
 			addClass(toolsPop, "show");
-			if (!await sleep(360, t)) return false;
+			/* Key zoom: close-up on the switch, everything else falls out of focus. */
+			camTo(470, 455, 1.32, 1200, t);
+			addClass(scene, "dof");
+			if (!await sleep(650, t)) return false;
 
 			if (!await glideTo(545, 462, 520, t)) return false;
+			if (!await sleep(120, t)) return false;
 			if (!await clickAt(545, 462, t)) return false;
 			addClass(toolToggle, "on");
 			setAttr(toolToggle, "aria-checked", "true");
-			if (!await sleep(300, t)) return false;
+			if (!await sleep(700, t)) return false;
 
 			removeClass(toolsPop, "show");
+			removeClass(scene, "dof");
 			addClass(chip, "on");
 			removeClass(toast, "show");
-			return await sleep(500, t);
+			camTo(560, 520, 1.06, 1300, t);
+			return await sleep(700, t);
 		}
 
 		async function run4(t) {
@@ -628,6 +796,7 @@
 				addClass(msgUser5, "show");
 				return true;
 			}
+			camTo(560, 600, 1.1, 1500, t);
 			if (!await sleep(420, t)) return false;
 
 			if (!await glideTo(560, 654, 700, t)) return false;
@@ -645,6 +814,7 @@
 
 			if (!await glideTo(840, 654, 520, t)) return false;
 			if (!await pressButton(sendBtn, 840, 654, t)) return false;
+			camTo(560, 300, 1.04, 1400, t);
 			return await sleep(380, t);
 		}
 
@@ -662,9 +832,16 @@
 			}
 
 			addClass(execStatus, "show");
-			if (!await sleep(1500, t)) return false;
+			setText(execText, "Connecting to server.adityahq.me/mcp\u2026");
+			if (!await sleep(700, t)) return false;
+			setText(execText, "Calling Subdomain Finder \u00B7 grafana.com\u2026");
+			if (!await sleep(800, t)) return false;
+			setText(execText, "Worked for 2s");
+			if (!await sleep(300, t)) return false;
 			removeClass(execStatus, "show");
 			addClass(resultHead, "show");
+			/* Second zoom: lean in on the numbers as they roll. */
+			camTo(560, 250, 1.2, 1300, t);
 			if (!await sleep(360, t)) return false;
 
 			addClass(metrics, "show");
@@ -676,9 +853,12 @@
 			setText(mTrunc, "Yes");
 			if (!await sleep(140, t)) return false;
 
+			if (!await sleep(500, t)) return false;
+			/* Slow pull-out to the master shot while the groups cascade in. */
+			camTo(560, 350, 1.0, 2600, t);
 			for (var i = 0; i < discCards.length; i++) {
 				addClass(discCards[i], "show");
-				if (!await sleep(140, t)) return false;
+				if (!await sleep(170, t)) return false;
 			}
 			/* Act 5 holds before the seamless reset. */
 			return await sleep(4500, t);
@@ -748,10 +928,12 @@
 				setText(inputText, QUERY);
 				addClass(inputWrap, "has-text");
 			} else if (act === 2) {
+				streamDone();
 				addClass(composer, "docked");
 				addClass(msgUser2, "show");
 				addClass(msgAi2, "show");
 			} else if (act === 3) {
+				streamDone();
 				addClass(composer, "docked");
 				addClass(msgUser2, "show");
 				addClass(msgAi2, "show");
@@ -835,6 +1017,26 @@
 			on(replayBtn, "click", function () {
 				startLoop(1);
 			});
+		}
+
+		if (speedBtn) {
+			on(speedBtn, "click", function () {
+				speed = speed === 1 ? 1.5 : speed === 1.5 ? 2 : 1;
+				setText(speedBtn, speed + "x");
+			});
+		}
+
+		/* Auto-pause when the stage is off-screen or the tab is hidden. */
+		var offscreen = false;
+		function refreshAuto() { autoPaused = offscreen || document.hidden === true; }
+		on(document, "visibilitychange", refreshAuto);
+		if (frameEl && typeof IntersectionObserver === "function") {
+			try {
+				new IntersectionObserver(function (entries) {
+					offscreen = !(entries[0] && entries[0].isIntersecting);
+					refreshAuto();
+				}, { threshold: 0.15 }).observe(frameEl);
+			} catch (err) { /* enhancement only */ }
 		}
 
 		on(motionQuery, "change", function (event) {
