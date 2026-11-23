@@ -142,15 +142,13 @@ a:focus-visible {
 /* ---------- Stage ---------- */
 
 .stage {
-	/* The header is 64px; keep the whole stage inside the first viewport. */
-	min-height: calc(100vh - 64px);
-	min-height: calc(100svh - 64px);
+	/* Let the next section follow the animation instead of reserving a viewport. */
 	display: flex;
 	flex-direction: column;
 	align-items: center;
 	justify-content: flex-start;
 	gap: 18px;
-	padding: 20px 24px 36px;
+	padding: 20px 24px 24px;
 }
 
 .stage-head { text-align: center; max-width: 660px; }
@@ -840,7 +838,7 @@ a:focus-visible {
 	.endpoint-pill { max-width: 52vw; }
 	.repo-link span { display: none; }
 	.repo-link { padding: 0 9px; }
-	.stage { padding: 20px 16px 32px; gap: 14px; }
+	.stage { padding: 20px 16px 24px; gap: 14px; }
 	.hero-sub { font-size: 13px; }
 	.stage-frame {
 		width: min(1120px, 100%, calc((100vh - 180px) * 1.6));
@@ -965,7 +963,7 @@ a:focus-visible {
 .cta-primary:active, .cta-ghost:active { transform: scale(0.96); }
 
 /* How it works */
-.how { max-width: 1120px; margin: 40px auto 0; padding: 0 24px; text-align: center; }
+.how { max-width: 1120px; margin: 0 auto; padding: 0 24px; text-align: center; }
 .how-grid { list-style: none; padding: 0; margin: 24px 0 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; text-align: left; }
 .how-card { border: 1px solid var(--line); background: var(--surface); border-radius: 14px; padding: 20px; }
 .how-num { font-family: var(--mono); font-size: 11px; color: var(--accent); }
